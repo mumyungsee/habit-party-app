@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>습관파티</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+
+  <!-- ⓪ 입장: 이름 선택 → 핀 -->
+  <section class="screen active" id="s-enter">
+    <div class="enter-hero">
+      <div class="logo">✦🎉✦</div>
+      <h1>습관파티</h1>
+      <div class="sub">혼자보다 같이, 작은 실천을 파티로<br/>AI 학습스터디 23기 · 30일 챌린지</div>
+    </div>
+
+    <!-- 1단계: 이름 선택 -->
+    <div id="step-pick">
+      <div class="section-title">나는 누구인가요?</div>
+      <div class="pick-list" id="pickList"></div>
+      <div class="enter-foot">명단에 없나요? 먼저 스터디 시트에 이름·팀·역할을 적어주세요.</div>
+      <button class="reset-btn" onclick="resetAll()">🧪 테스트 초기화 (저장된 핀·기록 전부 삭제)</button>
+    </div>
+
+    <!-- 2단계: 핀 입력 -->
+    <div id="step-pin" style="display:none;">
+      <button class="back" onclick="backToPick()">‹ 다른 사람 선택</button>
+      <div class="pin-card">
+        <div class="pin-ava" id="pinAva">🐱</div>
+        <div class="pin-name" id="pinName">이름</div>
+        <div class="pin-role" id="pinRole">팀 · 역할</div>
+        <div class="pin-prompt" id="pinPrompt">비밀번호 4자리를 입력하세요</div>
+        <div class="pin-dots" id="pinDots"></div>
+        <div class="pin-pad" id="pinPad"></div>
+        <div class="pin-err" id="pinErr"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ① 오늘 인증 -->
+  <section class="screen" id="s-today">
+    <div class="me-bar">
+      <span class="ava" id="meAva">🐱</span>
+      <div>
+        <div class="nm" id="meName">나</div>
+        <div class="rl" id="meRole">역할</div>
+      </div>
+      <button class="logout" onclick="logout()">바꾸기</button>
+    </div>
+    <div class="day-badge">챌린지 <b id="todayDay">12</b>일째 · <span id="todayDate"></span></div>
+
+    <div class="section-title">오늘 우리 파티</div>
+    <div class="party-strip" id="partyStrip"></div>
+    <div class="party-msg" id="partyMsg"></div>
+
+    <div class="section-title">오늘의 미션</div>
+    <div id="missionList"></div>
+
+    <div class="section-title">우리 파티 30일 기록</div>
+    <div class="grid-box"><div class="grid-scroll"><table id="grid"></table></div></div>
+  </section>
+
+  <div class="toast" id="toast">완료!</div>
+  <canvas id="confetti"></canvas>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
