@@ -7,6 +7,36 @@ let pinBuffer = "";  // 핀 입력 중 버퍼
 let pinTarget = null;// 핀 입력 대상 멤버
 let pinMode = "verify"; // "set"(처음) | "verify"(확인)
 
+// ── 아바타(DiceBear Miniavs) ──────────────────
+//  seed = 멤버 id(또는 이름) → 사람마다 고정된 캐릭터.
+//  나중에 멤버에 m.avatarSeed 저장하면 "다시뽑기"로 교체 가능.
+function avatarSeed(m) {
+  return (m && (m.avatarSeed || m.id || m.name)) || "guest";
+}
+function avatarUrl(m) {
+  const seed = encodeURIComponent(avatarSeed(m));
+  return `https://api.dicebear.com/9.x/miniavs/svg?seed=${seed}&backgroundColor=transparent`;
+}
+function avatarImg(m, sizeClass) {
+  return `<img class="av ${sizeClass}" src="${avatarUrl(m)}" alt="">`;
+}
+// Lucide 아이콘을 새로 그린 DOM에 적용 (innerHTML 후 호출 필요)
+function refreshIcons() {
+  if (window.lucide && lucide.createIcons) lucide.createIcons();
+}
+
+// 팀 → Lucide 아이콘 이름 매핑 (없으면 users)
+const TEAM_ICON = {
+  "자발적 학습팀": "sunrise",
+  "집단지성 학습팀": "messages-square",
+  "아웃풋 학습팀": "pen-line",
+  "적극학습(라이브)": "mic",
+  "적극학습(채팅)": "keyboard",
+};
+function teamIcon(team) {
+  return `<i data-lucide="${TEAM_ICON[team] || "users"}"></i>`;
+}
+
 // ── ⓪ 입장: 이름 목록 (시트에 이름 적은 사람만) ──
 function renderPickList() {
   const box = document.getElementById("pickList");
@@ -24,19 +54,20 @@ function renderPickList() {
   teamNames.forEach(team => {
     const head = document.createElement("div");
     head.className = "team-head";
-    head.textContent = (teams[team] ? teams[team].emoji : "") + " " + team;
+    head.innerHTML = `<i data-lucide="users"></i> ${team}`;
     box.appendChild(head);
     byTeam[team].forEach(m => {
       const el = document.createElement("div");
       el.className = "pick";
       el.onclick = () => choosePerson(m.id);
       el.innerHTML = `
-        <span class="ava">${m.emoji || "🐱"}</span>
+        ${avatarImg(m, "av-md")}
         <div class="info"><div class="nm">${m.name}</div><div class="rl">${m.role}</div></div>
-        <span class="arrow">›</span>`;
+        <span class="arrow"><i data-lucide="chevron-right"></i></span>`;
       box.appendChild(el);
     });
   });
+  refreshIcons();
 }
 
 // ── 핀 단계 ──────────────────────────────────
@@ -44,10 +75,9 @@ function choosePerson(id) {
   pinTarget = Data.member(id);
   pinMode = Data.hasPin(pinTarget) ? "verify" : "set";
   pinBuffer = "";
-  const t = Data.teams()[pinTarget.team];
-  document.getElementById("pinAva").textContent = pinTarget.emoji || "🐱";
+  document.getElementById("pinAva").innerHTML = avatarImg(pinTarget, "av-xl");
   document.getElementById("pinName").textContent = pinTarget.name;
-  document.getElementById("pinRole").textContent = (t ? t.emoji + " " : "") + pinTarget.team + " · " + pinTarget.role;
+  document.getElementById("pinRole").innerHTML = teamIcon(pinTarget.team) + " " + pinTarget.team + " · " + pinTarget.role;
   document.getElementById("pinPrompt").textContent =
     pinMode === "set" ? "처음이시네요! 쓸 비밀번호 4자리를 정해요" : "비밀번호 4자리를 입력하세요";
   document.getElementById("pinErr").textContent = "";
@@ -123,13 +153,14 @@ async function submitPin() {
 function enter(id) {
   me = Data.member(id);
   Data.setMe(id);
-  document.getElementById("meAva").textContent = me.emoji || "🐱";
+  document.getElementById("meAva").innerHTML = avatarImg(me, "av-lg");
   document.getElementById("meName").textContent = me.name;
-  document.getElementById("meRole").textContent = me.role + " · " + me.team;
+  document.getElementById("meRole").innerHTML = teamIcon(me.team) + " " + me.team + " · " + me.role;
   document.getElementById("todayDay").textContent = Data.challenge().today;
-  document.getElementById("todayDate").textContent = new Date().toLocaleDateString("ko-KR", {month:"long", day:"numeric"});
+  document.getElementById("todayDate").textContent = new Date().toLocaleDateString("ko-KR", {weekday:"long", month:"long", day:"numeric"});
   renderMissions(); renderGrid();
   go("s-today");
+  refreshIcons();
 }
 
 function logout() {
@@ -157,15 +188,15 @@ function renderMissions(justOnId) {
   el.className = "mission" + (isDone ? " done" : "");
   el.innerHTML = `
     <div class="top">
-      <div class="check" onclick="toggleMission()">${isDone ? "✓" : ""}</div>
+      <div class="check" onclick="toggleMission()">${isDone ? '<i data-lucide="check"></i>' : ""}</div>
       <div class="body">
-        <div class="mtitle">${m.emoji} ${m.title}${isDone ? ' <span class="done-tag">오늘 인증 완료 ✓</span>' : ''}</div>
-        <div class="mdesc">${m.desc}</div>
-        <textarea class="memo" id="memo" placeholder="한 줄 메모나 링크를 남겨요 (선택)"></textarea>
+        <div class="mtitle">${m.title}${isDone ? ' <span class="done-tag">오늘 인증 완료</span>' : ''}</div>
+        <div class="mteam">${teamIcon(m.team)} ${m.team} · ${m.role}</div>
       </div>
     </div>`;
   list.appendChild(el);
   renderTodayParty(justOnId);
+  refreshIcons();
 }
 
 // 인증 화면 "오늘 우리 파티" 가로 스트립
@@ -183,8 +214,8 @@ function renderTodayParty(justOnId) {
     const chip = document.createElement("div");
     chip.className = "pchip" + (on ? " on" : "") + (isMe ? " me" : "") + (on && p.id === justOnId ? " just-on" : "");
     chip.innerHTML = `
-      <div class="pbadge">✓</div>
-      <div class="pava">${p.emoji || "🐱"}</div>
+      <div class="pbadge"><i data-lucide="check"></i></div>
+      <div class="pava">${avatarImg(p, "av-md")}</div>
       <div class="pnm">${isMe ? "나" : p.name}</div>`;
     strip.appendChild(chip);
   });
@@ -192,9 +223,9 @@ function renderTodayParty(justOnId) {
   const left = mates.length - done;
   const msg = document.getElementById("partyMsg");
   msg.classList.remove("win");
-  if (done === mates.length) { msg.classList.add("win"); msg.innerHTML = "우리 파티 <b>전원 완주!</b> 🎉"; }
+  if (done === mates.length) { msg.classList.add("win"); msg.innerHTML = "우리 파티 <b>전원 완주!</b>"; }
   else if (left === 1 && Data.myCheckRaw(me, ch.today) !== true)
-    msg.innerHTML = "<b>나 하나 남았어요!</b> 내가 채우면 파티 완성 ✨";
+    msg.innerHTML = "<b>나 하나 남았어요!</b> 내가 채우면 파티 완성";
   else msg.innerHTML = `${done}/${mates.length}명 완료 · ${left}명 남음`;
 }
 
@@ -207,9 +238,8 @@ async function toggleMission() {
   const day = Data.challenge().today;
   const cur = Data.myCheckRaw(me, day) === true;
   const mates = teamMates();
-  const memo = (document.getElementById("memo") || {}).value || "";
 
-  Data.setMyCheck(me, day, !cur, memo); // 서버 저장(비동기, 내부에서 캐시 먼저 갱신)
+  Data.setMyCheck(me, day, !cur, ""); // 서버 저장(비동기, 내부에서 캐시 먼저 갱신)
   // 내 칩 점등 애니메이션 (방금 켰을 때만)
   renderMissions(!cur ? me.id : null);
   renderGrid();
@@ -236,17 +266,29 @@ function renderGrid() {
   let html = "<tr><th class='row-label'></th>";
   for (let d = 1; d <= ch.totalDays; d++) html += `<th class="col-day ${d===ch.today?"today":""}">${d}</th>`;
   html += "</tr>";
+  // 날짜별 "팀 전원 인증 완료" 여부 미리 계산 (전원완주 날 = 보석)
+  const allDone = {};
+  for (let d = 1; d <= ch.today; d++) {
+    allDone[d] = mates.length > 0 && mates.every(p => Data.isChecked(p, d));
+  }
   mates.forEach(p => {
-    html += `<tr><td class="row-label">${p.emoji || "🐱"} ${p.name}</td>`;
+    html += `<tr><td class="row-label">${avatarImg(p, "av-xs")} ${p.name}</td>`;
     for (let d = 1; d <= ch.totalDays; d++) {
-      let mark = "·", cls = "";
-      if (d < ch.today) { const on = Data.isChecked(p, d); mark = on?"♥":"·"; cls = on?"done":"miss"; }
-      else if (d === ch.today) { const on = Data.isChecked(p, d); mark = on?"♥":"·"; cls = (on?"done":"miss")+" today"; }
-      html += `<td class="cell ${cls}">${mark}</td>`;
+      let cls = "miss";
+      let on = false;
+      if (d <= ch.today) { on = Data.isChecked(p, d); cls = on ? "done" : "miss"; }
+      if (d === ch.today) cls += " today";
+      const fire = on && allDone[d];          // 본인 인증 + 그날 팀 전원완주
+      if (fire) cls += " fire";
+      const inner = fire ? '<i data-lucide="flame"></i>'
+                  : on   ? '<i data-lucide="check"></i>'
+                         : '<span class="miss-dot"></span>';
+      html += `<td class="cell ${cls}">${inner}</td>`;
     }
     html += "</tr>";
   });
   t.innerHTML = html;
+  refreshIcons();
 }
 
 // ── 공통 ─────────────────────────────────────
@@ -267,9 +309,12 @@ function fireConfetti(size) {
   ctx.setTransform(dpr,0,0,dpr,0,0);
   canvas.classList.add("on");
 
-  const colors = ["#ffd166","#ff7eb6","#7af5c9","#a78bfa","#fca5a5","#fff"];
-  const N = big ? 220 : 45;
-  const maxFrame = big ? 200 : 110;
+  // 축하 파티클: 네이비 베이스에 화사한 포인트(금·코랄·민트). 전원완주는 더 화려하게.
+  const colors = big
+    ? ["#2d3a5e","#e8b54a","#ff8a5c","#43c6ac","#f7d774","#a98bd6","#ffffff"] // 전원완주 — 파티
+    : ["#2d3a5e","#3d4d77","#e8b54a","#ff8a5c","#f7d774"];                     // 개인 — 절제된 축하
+  const N = big ? 220 : 110;
+  const maxFrame = big ? 200 : 130;
   const parts = [];
 
   if (big) {
@@ -283,8 +328,8 @@ function fireConfetti(size) {
       for (let i = 0; i < N/3; i++) parts.push(mk(o.x, o.y, o.spread, o.up, 7, 11));
     });
   } else {
-    // 파티 스트립 근처(화면 상단)에서 소소하게
-    for (let i = 0; i < N; i++) parts.push(mk(innerWidth/2, innerHeight*0.28, 8, 9, 5, 8));
+    // 화면 아래쪽(미션 근처)에서 위로 시원하게 솟구치는 분수 한 발
+    for (let i = 0; i < N; i++) parts.push(mk(innerWidth/2, innerHeight*0.7, 13, 19, 7, 11));
   }
 
   function mk(x, y, spread, up, smin, smax) {
@@ -343,6 +388,7 @@ async function init() {
     return;
   }
   renderPickList();
+  refreshIcons();
   // 이 기기에 기억된 로그인이 있으면 바로 입장 (서버에 그 멤버가 있어야)
   const saved = Data.savedMe();
   if (saved && Data.member(saved)) enter(saved);

@@ -1,3 +1,7 @@
 members_body.json
 .DS_Store
 *.log
+
+# 작업용 디자인 시안/백업 (로컬 보관, 레포 제외)
+_preview-*.html
+*.bak

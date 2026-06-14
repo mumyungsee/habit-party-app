@@ -73,7 +73,8 @@ const Data = {
   // 이름이 있는(=실제 사람이 앉은) 멤버만
   filledMembers() { return Store.members.filter(m => m.name && m.name.trim()); },
   missionFor(member) {
-    return { id: "main", title: member.team, desc: member.mission, emoji: member.emoji || TEAM_EMOJI[member.team] || "🐱" };
+    // title = 실제 인증할 미션 내용(위계 1순위), team/role = 보조 라벨
+    return { id: "main", title: member.mission, team: member.team, role: member.role, emoji: member.emoji || TEAM_EMOJI[member.team] || "🐱" };
   },
 
   // ── 핀 ──

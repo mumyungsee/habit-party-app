@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>습관파티</title>
 <link rel="stylesheet" href="style.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 <div class="app">
@@ -12,7 +13,7 @@
   <!-- ⓪ 입장: 이름 선택 → 핀 -->
   <section class="screen active" id="s-enter">
     <div class="enter-hero">
-      <div class="logo">✦🎉✦</div>
+      <div class="logo"><i data-lucide="party-popper"></i></div>
       <h1>습관파티</h1>
       <div class="sub">혼자보다 같이, 작은 실천을 파티로<br/>AI 학습스터디 23기 · 30일 챌린지</div>
     </div>
@@ -27,9 +28,9 @@
 
     <!-- 2단계: 핀 입력 -->
     <div id="step-pin" style="display:none;">
-      <button class="back" onclick="backToPick()">‹ 다른 사람 선택</button>
+      <button class="back" onclick="backToPick()"><i data-lucide="chevron-left"></i> 다른 사람 선택</button>
       <div class="pin-card">
-        <div class="pin-ava" id="pinAva">🐱</div>
+        <div class="pin-ava" id="pinAva"></div>
         <div class="pin-name" id="pinName">이름</div>
         <div class="pin-role" id="pinRole">팀 · 역할</div>
         <div class="pin-prompt" id="pinPrompt">비밀번호 4자리를 입력하세요</div>
@@ -43,14 +44,17 @@
   <!-- ① 오늘 인증 -->
   <section class="screen" id="s-today">
     <div class="me-bar">
-      <span class="ava" id="meAva">🐱</span>
+      <span class="me-ava" id="meAva"></span>
       <div>
         <div class="nm" id="meName">나</div>
         <div class="rl" id="meRole">역할</div>
       </div>
-      <button class="logout" onclick="logout()">바꾸기</button>
+      <button class="logout" onclick="logout()"><i data-lucide="repeat-2"></i> 바꾸기</button>
     </div>
-    <div class="day-badge">챌린지 <b id="todayDay">12</b>일째 · <span id="todayDate"></span></div>
+    <div class="day-hero">
+      <div class="big">챌린지 <b id="todayDay">12</b>일째</div>
+      <div class="date" id="todayDate"></div>
+    </div>
 
     <div class="section-title">오늘 우리 파티</div>
     <div class="party-strip" id="partyStrip"></div>
