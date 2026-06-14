@@ -213,8 +213,10 @@ function renderTodayParty(justOnId) {
     const isMe = p.id === me.id;
     const chip = document.createElement("div");
     chip.className = "pchip" + (on ? " on" : "") + (isMe ? " me" : "") + (on && p.id === justOnId ? " just-on" : "");
+    const lead = p.role === "서포터즈";   // 팀 리더 표시
     chip.innerHTML = `
       <div class="pbadge"><i data-lucide="check"></i></div>
+      ${lead ? '<div class="pcrown"><i data-lucide="crown"></i></div>' : ''}
       <div class="pava">${avatarImg(p, "av-md")}</div>
       <div class="pnm">${isMe ? "나" : p.name}</div>`;
     strip.appendChild(chip);

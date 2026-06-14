@@ -165,8 +165,9 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
 .pchip .pava { line-height: 1; transition: all .35s; display: inline-flex; }
 .pchip .pava .av { width: 38px; height: 38px; opacity: .4; }
 .pchip .pnm {
-  font-size: 11px; color: var(--text3); margin-top: 7px; font-weight: 500;
+  font-size: 11px; color: var(--text3); margin: 7px auto 0; font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px;
+  text-align: center;
 }
 .pchip .pbadge {
   position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%;
@@ -174,6 +175,11 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
   display: none; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,.15);
 }
 .pchip .pbadge [data-lucide] { font-size: 12px; }
+/* 서포터즈(팀 리더) 왕관 */
+.pchip .pcrown {
+  position: absolute; top: 3px; left: 5px; color: #d6a93a;
+}
+.pchip .pcrown [data-lucide] { font-size: 14px; }
 /* 완료(점등) 상태 */
 .pchip.on { border-color: var(--brand); background: var(--brand-soft); }
 .pchip.on .pava .av { opacity: 1; transform: scale(1.05); }
