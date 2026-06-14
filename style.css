@@ -255,3 +255,31 @@ th, td { text-align: center; }
   pointer-events: none; z-index: 50; display: none;
 }
 #confetti.on { display: block; }
+
+/* ── PWA 설치 버튼(안드로이드) ── */
+.pwa-install {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  background: var(--brand); color: #fff; border: none; border-radius: 999px;
+  padding: 12px 20px; font-size: 14px; font-weight: 700; font-family: inherit;
+  cursor: pointer; box-shadow: 0 6px 20px rgba(45,58,94,.35); z-index: 40;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.pwa-install [data-lucide] { font-size: 17px; }
+
+/* ── PWA 안내 배너(아이폰) ── */
+.pwa-guide { position: fixed; inset: 0; background: rgba(20,20,40,.4); z-index: 60;
+  display: flex; align-items: flex-end; }
+.pwa-guide-card {
+  background: var(--surface); width: 100%; max-width: 480px; margin: 0 auto;
+  border-radius: 20px 20px 0 0; padding: 24px 22px 30px; position: relative; text-align: center;
+  box-shadow: 0 -4px 24px rgba(0,0,0,.15);
+}
+.pwa-guide-x { position: absolute; top: 16px; right: 16px; background: none; border: none;
+  color: var(--text3); cursor: pointer; }
+.pwa-guide-x [data-lucide] { font-size: 20px; }
+.pwa-guide-ttl { font-size: 17px; font-weight: 800; color: var(--text);
+  display: flex; align-items: center; justify-content: center; gap: 6px; }
+.pwa-guide-ttl [data-lucide] { color: var(--brand); }
+.pwa-guide-body { font-size: 14px; color: var(--text2); margin-top: 12px; line-height: 1.7; }
+.pwa-guide-body b { color: var(--text); }
+.pwa-guide-body [data-lucide] { font-size: 15px; vertical-align: -.15em; }
