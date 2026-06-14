@@ -136,22 +136,23 @@
   // 사파리(아이폰)인지 — 카톡/크롬 인앱이 아닌 진짜 사파리에서만 '홈 화면 추가'가 됨
   const isRealSafari = isIOS && /safari/i.test(navigator.userAgent) && !/crios|fxios|kakaotalk|naver|line/i.test(navigator.userAgent);
   const btn = document.getElementById("pwaInstall");
+  // 한 번 설치했으면 기록 — 브라우저로 다시 열어도 버튼 안 뜨게
+  const alreadyInstalled = isStandalone || localStorage.getItem("pwaInstalled") === "1";
 
-  // 설치는 '보너스'. 설치 가능한 환경에서만 조용히 버튼 노출.
-  //  - 안드로이드/데스크탑 크롬: 설치 신호(beforeinstallprompt) 오면 노출
-  //  - 아이폰 사파리: 신호가 없으므로 사파리일 때만 노출(눌러야 안내)
-  //  - 카톡 등 인앱 브라우저: 신호 없고 사파리도 아님 → 숨김(설치 안 되니 안 띄움)
-  function showBtn() { if (!isStandalone) btn.style.display = "inline-flex"; }
+  // 설치는 '보너스'. 설치 가능 + 아직 설치 안 한 환경에서만 조용히 버튼 노출.
+  function showBtn() { if (!alreadyInstalled) btn.style.display = "inline-flex"; }
   if (window.__deferredPrompt) showBtn();
   document.addEventListener("pwa-installable", showBtn);
-  if (isRealSafari && !isStandalone) showBtn();
+  if (isRealSafari && !alreadyInstalled) showBtn();
 
   // 설치 버튼 클릭 → 상황별 처리
   function installPWA() {
     const dp = window.__deferredPrompt;
     if (dp) {
       dp.prompt();
-      dp.userChoice.finally(() => {
+      dp.userChoice.then((c) => {
+        if (c && c.outcome === "accepted") markInstalled();
+      }).finally(() => {
         window.__deferredPrompt = null;
         btn.style.display = "none";
       });
@@ -162,10 +163,12 @@
     }
   }
 
-  // 설치 완료되면 버튼 숨김
-  window.addEventListener("appinstalled", () => {
-    document.getElementById("pwaInstall").style.display = "none";
-  });
+  // 설치 완료 → 기록 남기고 버튼 영구 숨김
+  function markInstalled() {
+    localStorage.setItem("pwaInstalled", "1");
+    btn.style.display = "none";
+  }
+  window.addEventListener("appinstalled", markInstalled);
 
   function openGuide(id) {
     document.getElementById(id).style.display = "block";

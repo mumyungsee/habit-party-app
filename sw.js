@@ -1,6 +1,6 @@
 // 습관파티 서비스워커 — PWA 설치 요건 + 앱 껍데기 오프라인 캐싱(최소 버전)
 // 캐시 버전: 앱 파일 바꾸면 숫자 올려서 갱신
-const CACHE = "habitparty-v1";
+const CACHE = "habitparty-v2";
 const ASSETS = [
   "./",
   "./index.html",
