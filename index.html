@@ -17,6 +17,17 @@
 
 <link rel="stylesheet" href="style.css" />
 <script src="https://unpkg.com/lucide@latest"></script>
+
+<!-- PWA 설치 이벤트는 페이지 로드 직후 바로 발생하므로, 놓치지 않게 head에서 미리 잡아둠 -->
+<script>
+  window.__deferredPrompt = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    window.__deferredPrompt = e;
+    document.dispatchEvent(new Event("pwa-installable"));
+  });
+  window.addEventListener("appinstalled", () => { window.__deferredPrompt = null; });
+</script>
 </head>
 <body>
 <div class="app">
@@ -86,13 +97,27 @@
 <button class="pwa-install" id="pwaInstall" onclick="installPWA()" style="display:none;">
   <i data-lucide="download"></i> 홈 화면에 앱으로 추가
 </button>
+<!-- 아이폰: 사파리 공유 안내 -->
 <div class="pwa-guide" id="pwaGuide" style="display:none;">
   <div class="pwa-guide-card">
-    <button class="pwa-guide-x" onclick="closePwaGuide()"><i data-lucide="x"></i></button>
+    <button class="pwa-guide-x" onclick="closePwaGuide('pwaGuide')"><i data-lucide="x"></i></button>
     <div class="pwa-guide-ttl">앱처럼 쓰기 <i data-lucide="party-popper"></i></div>
     <div class="pwa-guide-body">
       아래 <b>공유 버튼 <i data-lucide="share"></i></b> 을 누르고<br/>
       <b>'홈 화면에 추가'</b> 를 선택하면<br/>
+      바탕화면에 습관파티 앱이 생겨요.
+    </div>
+  </div>
+</div>
+
+<!-- 안드로이드: 자동설치 불가 시 메뉴 안내 -->
+<div class="pwa-guide" id="pwaGuideAos" style="display:none;">
+  <div class="pwa-guide-card">
+    <button class="pwa-guide-x" onclick="closePwaGuide('pwaGuideAos')"><i data-lucide="x"></i></button>
+    <div class="pwa-guide-ttl">앱처럼 쓰기 <i data-lucide="party-popper"></i></div>
+    <div class="pwa-guide-body">
+      우측 상단 <b>점 세 개 <i data-lucide="more-vertical"></i></b> 를 누르고<br/>
+      <b>'앱 설치'</b> 또는 <b>'홈 화면에 추가'</b> 를 선택하면<br/>
       바탕화면에 습관파티 앱이 생겨요.
     </div>
   </div>
@@ -106,35 +131,44 @@
     window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(()=>{}));
   }
 
-  // ── 설치 버튼/안내 분기 ──
-  let deferredPrompt = null;
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
 
-  // 안드로이드/크롬: 설치 가능 시점에 버튼 노출
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    if (!isStandalone) document.getElementById("pwaInstall").style.display = "inline-flex";
-  });
+  // 이미 앱으로 깔려서 실행 중이면 버튼 숨김. 아니면 항상 노출.
+  if (!isStandalone) {
+    document.getElementById("pwaInstall").style.display = "inline-flex";
+  }
+
+  // 설치 버튼 클릭 → 상황별 처리
   function installPWA() {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.finally(() => {
-      deferredPrompt = null;
-      document.getElementById("pwaInstall").style.display = "none";
-    });
+    const dp = window.__deferredPrompt;
+    if (dp) {
+      // 브라우저가 설치 가능 신호를 줬을 때 → 바로 설치창
+      dp.prompt();
+      dp.userChoice.finally(() => {
+        window.__deferredPrompt = null;
+        document.getElementById("pwaInstall").style.display = "none";
+      });
+    } else if (isIOS) {
+      // 아이폰 → 사파리 공유 안내
+      openGuide("pwaGuide");
+    } else {
+      // 안드로이드인데 자동설치 신호가 아직 없음 → 메뉴 안내(폴백)
+      openGuide("pwaGuideAos");
+    }
   }
-  // 아이폰: 설치 이벤트가 없으므로 안내 배너 (이미 앱이면 숨김, 닫으면 기억)
-  if (isIOS && !isStandalone && !localStorage.getItem("pwaGuideClosed")) {
-    setTimeout(() => {
-      document.getElementById("pwaGuide").style.display = "block";
-      if (window.lucide) lucide.createIcons();
-    }, 1500);
+
+  // 설치 완료되면 버튼 숨김
+  window.addEventListener("appinstalled", () => {
+    document.getElementById("pwaInstall").style.display = "none";
+  });
+
+  function openGuide(id) {
+    document.getElementById(id).style.display = "block";
+    if (window.lucide) lucide.createIcons();
   }
-  function closePwaGuide() {
-    document.getElementById("pwaGuide").style.display = "none";
-    localStorage.setItem("pwaGuideClosed", "1");
+  function closePwaGuide(id) {
+    document.getElementById(id).style.display = "none";
   }
 </script>
 </body>
