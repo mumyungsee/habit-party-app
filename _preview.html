@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>습관파티 — 리디자인</title>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body { margin:0; font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; background:#e8e8ec; }
+  .wrap { display:flex; gap:24px; padding:24px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+  .col { width:430px; }
+  .label { text-align:center; font-weight:800; font-size:15px; margin-bottom:10px; color:#333; }
+  .label small { display:block; font-weight:500; font-size:12px; color:#888; margin-top:3px; line-height:1.4; }
+  .frame { border-radius:28px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,.15); }
+  [data-lucide]{ width:1em; height:1em; stroke-width:2; vertical-align:-.12em; }
+
+  /* ========== A. 현재 (다크 네온 + 이모지) ========== */
+  .dark { background: radial-gradient(1200px 600px at 50% -10%, #34285e 0%, #1a1530 55%); color:#f2eeff; padding:22px 16px 16px; }
+  .dark .me-bar { display:flex; align-items:center; gap:12px; background:#251d44; border:1px solid #443a6e; border-radius:14px; padding:12px 14px; }
+  .dark .me-bar .ava { font-size:32px; }
+  .dark .me-bar .nm { font-weight:700; }
+  .dark .me-bar .rl { font-size:12px; color:#ff7eb6; margin-top:2px; }
+  .dark .logout { margin-left:auto; background:none; border:1px solid #443a6e; color:#9b91c4; border-radius:9px; padding:7px 12px; font-size:12px; }
+  .dark .day-badge { display:inline-block; margin-top:12px; padding:5px 14px; background:#251d44; border:1px solid #443a6e; border-radius:999px; font-size:13px; color:#9b91c4; }
+  .dark .day-badge b { color:#ff7eb6; }
+  .dark .section-title { font-size:13px; color:#9b91c4; font-weight:700; margin:22px 4px 10px; }
+  .dark .party-strip { display:flex; gap:8px; padding:4px 2px 6px; }
+  .dark .pchip { flex:1 0 auto; min-width:60px; text-align:center; background:#251d44; border:1px solid #443a6e; border-radius:14px; padding:10px 6px 8px; }
+  .dark .pchip.on { border-color:#7af5c9; background:linear-gradient(135deg,#243f3a,#2a2350); }
+  .dark .pchip .pava { font-size:28px; }
+  .dark .pchip .pnm { font-size:10px; color:#9b91c4; margin-top:5px; }
+  .dark .pchip.on .pnm { color:#f2eeff; font-weight:700; }
+  .dark .mission { background:#2e2552; border:1px solid #443a6e; border-radius:16px; padding:16px; margin-bottom:12px; }
+  .dark .mission.done { border-color:#7af5c9; background:linear-gradient(135deg,#243f3a,#2a2350); }
+  .dark .mission .top { display:flex; align-items:flex-start; gap:12px; }
+  .dark .check { width:30px; height:30px; border-radius:9px; border:2px solid #443a6e; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:17px; }
+  .dark .mission.done .check { background:#7af5c9; border-color:#7af5c9; color:#06352a; }
+  .dark .mtitle { font-weight:700; font-size:16px; }
+  .dark .mdesc { font-size:13px; color:#9b91c4; margin-top:5px; }
+  .dark .finish-btn { width:100%; margin-top:8px; padding:17px; border:none; border-radius:14px; font-size:16px; font-weight:800; background:linear-gradient(135deg,#ffd166,#ffb347); color:#3a2a00; }
+  .dark .grid-box { background:#251d44; border:1px solid #443a6e; border-radius:16px; padding:14px 12px; margin-top:10px; }
+  .dark table { border-collapse:collapse; width:100%; }
+  .dark th,.dark td { text-align:center; }
+  .dark .row-label { font-size:12px; color:#f2eeff; white-space:nowrap; padding-right:8px; text-align:left; font-weight:600; }
+  .dark .col-day { font-size:9px; color:#9b91c4; padding-bottom:6px; }
+  .dark .cell { font-size:12px; padding:2px 0; }
+  .dark .cell.done { color:#7af5c9; }
+  .dark .cell.miss { color:#5a5080; }
+
+  /* ========== B. 새 리디자인 ========== */
+  .v2 {
+    --bg:#f5f5f7; --surface:#ffffff; --line:#ececf0;
+    --text:#16161a; --text2:#6e6e78; --text3:#a0a0aa;
+    --brand:#4f46e5; --brand-soft:#eef0fe; --ok:#15a34a; --ok-soft:#effbf3; --miss:#e2e2e8;
+    --r:16px; --shadow:0 1px 3px rgba(20,20,40,.05),0 1px 2px rgba(20,20,40,.03);
+    background:var(--bg); color:var(--text); padding:28px 20px 20px;
+  }
+  /* 컬러 이니셜 아바타 — 이모지 대체 */
+  .v2 .avatar { display:inline-flex; align-items:center; justify-content:center; border-radius:50%; font-weight:700; color:#fff; flex-shrink:0; }
+  .v2 .a-lg { width:44px; height:44px; font-size:17px; }
+  .v2 .a-md { width:38px; height:38px; font-size:15px; }
+  .v2 .a-sm { width:34px; height:34px; font-size:14px; }
+  .c1{background:#6366f1;} .c2{background:#f97316;} .c3{background:#ec4899;} .c4{background:#0ea5e9;} .c5{background:#14b8a6;}
+
+  .v2 .me-bar { display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:13px 14px; box-shadow:var(--shadow); }
+  .v2 .me-bar .nm { font-weight:700; font-size:16px; letter-spacing:-.2px; }
+  .v2 .me-bar .rl { font-size:12.5px; color:var(--text2); margin-top:3px; display:flex; align-items:center; gap:4px; }
+  .v2 .logout { margin-left:auto; background:var(--bg); border:1px solid var(--line); color:var(--text2); border-radius:10px; padding:8px 12px; font-size:12.5px; font-weight:500; display:flex; align-items:center; gap:4px; }
+  .v2 .day-hero { margin:24px 4px 4px; }
+  .v2 .day-hero .big { font-size:28px; font-weight:800; letter-spacing:-.8px; }
+  .v2 .day-hero .big b { color:var(--brand); }
+  .v2 .day-hero .date { font-size:13px; color:var(--text3); margin-top:2px; }
+  .v2 .section-title { font-size:12px; font-weight:700; color:var(--text3); letter-spacing:.3px; text-transform:uppercase; margin:28px 4px 12px; }
+  .v2 .party-strip { display:flex; gap:10px; padding:2px; }
+  .v2 .pchip { flex:1 0 auto; min-width:62px; text-align:center; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 6px 9px; box-shadow:var(--shadow); }
+  .v2 .pchip .avatar { opacity:.35; filter:grayscale(.6); }
+  .v2 .pchip.on .avatar { opacity:1; filter:none; }
+  .v2 .pchip .pnm { font-size:11px; color:var(--text3); margin-top:7px; font-weight:500; }
+  .v2 .pchip.on .pnm { color:var(--brand); font-weight:700; }
+  .v2 .mission { background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:18px; margin-bottom:12px; box-shadow:var(--shadow); }
+  .v2 .mission.done { border-color:#cdeed8; background:var(--ok-soft); }
+  .v2 .mission .top { display:flex; align-items:center; gap:14px; }
+  .v2 .check { width:30px; height:30px; border-radius:10px; border:2px solid #dcdce4; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:transparent; }
+  .v2 .mission.done .check { background:var(--ok); border-color:var(--ok); color:#fff; }
+  .v2 .check [data-lucide]{ font-size:17px; }
+  .v2 .mtitle { font-weight:700; font-size:15.5px; letter-spacing:-.2px; }
+  .v2 .mdesc { font-size:13px; color:var(--text2); margin-top:4px; line-height:1.5; }
+  .v2 .finish-btn { width:100%; margin-top:16px; padding:16px; border:none; border-radius:14px; font-size:15.5px; font-weight:700; background:var(--brand); color:#fff; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(79,70,229,.25); }
+  .v2 .finish-btn [data-lucide]{ font-size:18px; }
+  /* 30일 그리드 */
+  .v2 .grid-box { background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:16px 14px; box-shadow:var(--shadow); overflow-x:auto; }
+  .v2 table { border-collapse:collapse; width:100%; }
+  .v2 th,.v2 td { text-align:center; }
+  .v2 .row-label { font-size:12px; color:var(--text); white-space:nowrap; padding-right:10px; text-align:left; font-weight:600; }
+  .v2 .col-day { font-size:9px; color:var(--text3); padding-bottom:8px; min-width:16px; }
+  .v2 .col-day.today { color:var(--brand); font-weight:800; }
+  .v2 .cell { width:16px; height:18px; padding:2px 0; }
+  .v2 .cell .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .v2 .cell.done .dot { background:var(--ok); }
+  .v2 .cell.miss .dot { background:var(--miss); }
+  .v2 .cell.today .dot { box-shadow:0 0 0 2px var(--brand); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- A -->
+    <div class="col">
+      <div class="label">A. 지금<small>다크 네온 · 이모지 · 균등 간격</small></div>
+      <div class="frame"><div class="dark">
+        <div class="me-bar"><span class="ava">🐱</span>
+          <div><div class="nm">아루나</div><div class="rl">🔥 불꽃팀 · 리더</div></div>
+          <button class="logout">바꾸기</button></div>
+        <div class="day-badge">챌린지 <b>12</b>일째 · 6월 14일</div>
+        <div class="section-title">오늘 우리 파티</div>
+        <div class="party-strip">
+          <div class="pchip on"><div class="pava">🐱</div><div class="pnm">아루나</div></div>
+          <div class="pchip on"><div class="pava">🦊</div><div class="pnm">민수</div></div>
+          <div class="pchip"><div class="pava">🐰</div><div class="pnm">지영</div></div>
+          <div class="pchip"><div class="pava">🐻</div><div class="pnm">현우</div></div>
+        </div>
+        <div class="section-title">오늘의 미션</div>
+        <div class="mission done"><div class="top"><div class="check">✓</div>
+          <div><div class="mtitle">물 2L 마시기</div><div class="mdesc">하루 동안 꾸준히 수분 보충하기</div></div></div></div>
+        <div class="mission"><div class="top"><div class="check"></div>
+          <div><div class="mtitle">10분 스트레칭</div><div class="mdesc">아침에 일어나서 가볍게 몸풀기</div></div></div></div>
+        <button class="finish-btn">오늘 인증 완료</button>
+        <div class="section-title">우리 파티 30일 기록</div>
+        <div class="grid-box"><table>
+          <tr><th></th><th class="col-day">10</th><th class="col-day">11</th><th class="col-day">12</th><th class="col-day">13</th><th class="col-day">14</th></tr>
+          <tr><td class="row-label">아루나</td><td class="cell done">●</td><td class="cell done">●</td><td class="cell done">●</td><td class="cell miss">·</td><td class="cell miss">·</td></tr>
+          <tr><td class="row-label">민수</td><td class="cell done">●</td><td class="cell miss">·</td><td class="cell done">●</td><td class="cell done">●</td><td class="cell miss">·</td></tr>
+          <tr><td class="row-label">지영</td><td class="cell done">●</td><td class="cell done">●</td><td class="cell miss">·</td><td class="cell miss">·</td><td class="cell miss">·</td></tr>
+          <tr><td class="row-label">현우</td><td class="cell miss">·</td><td class="cell done">●</td><td class="cell done">●</td><td class="cell done">●</td><td class="cell miss">·</td></tr>
+        </table></div>
+      </div></div>
+    </div>
+
+    <!-- B -->
+    <div class="col">
+      <div class="label">B. 새 리디자인<small>라이트 · 컬러 이니셜 아바타 · Lucide 아이콘 · 위계+여백</small></div>
+      <div class="frame"><div class="v2">
+        <div class="me-bar"><span class="avatar a-lg c1">아</span>
+          <div><div class="nm">아루나</div><div class="rl"><i data-lucide="flame"></i> 불꽃팀 · 리더</div></div>
+          <button class="logout"><i data-lucide="repeat-2"></i> 바꾸기</button></div>
+        <div class="day-hero"><div class="big">챌린지 <b>12</b>일째</div><div class="date">6월 14일 토요일</div></div>
+        <div class="section-title">오늘 우리 파티</div>
+        <div class="party-strip">
+          <div class="pchip on"><span class="avatar a-md c1">아</span><div class="pnm">아루나</div></div>
+          <div class="pchip on"><span class="avatar a-md c2">민</span><div class="pnm">민수</div></div>
+          <div class="pchip"><span class="avatar a-md c3">지</span><div class="pnm">지영</div></div>
+          <div class="pchip"><span class="avatar a-md c4">현</span><div class="pnm">현우</div></div>
+        </div>
+        <div class="section-title">오늘의 미션</div>
+        <div class="mission done"><div class="top"><div class="check"><i data-lucide="check"></i></div>
+          <div><div class="mtitle">물 2L 마시기</div><div class="mdesc">하루 동안 꾸준히 수분 보충하기</div></div></div></div>
+        <div class="mission"><div class="top"><div class="check"></div>
+          <div><div class="mtitle">10분 스트레칭</div><div class="mdesc">아침에 일어나서 가볍게 몸풀기</div></div></div></div>
+        <button class="finish-btn"><i data-lucide="party-popper"></i> 오늘 인증 완료</button>
+        <div class="section-title">우리 파티 30일 기록</div>
+        <div class="grid-box"><table>
+          <tr><th></th><th class="col-day">10</th><th class="col-day">11</th><th class="col-day">12</th><th class="col-day">13</th><th class="col-day today">14</th></tr>
+          <tr><td class="row-label">아루나</td><td class="cell done"><span class="dot"></span></td><td class="cell done"><span class="dot"></span></td><td class="cell done"><span class="dot"></span></td><td class="cell miss"><span class="dot"></span></td><td class="cell today miss"><span class="dot"></span></td></tr>
+          <tr><td class="row-label">민수</td><td class="cell done"><span class="dot"></span></td><td class="cell miss"><span class="dot"></span></td><td class="cell done"><span class="dot"></span></td><td class="cell done"><span class="dot"></span></td><td class="cell today miss"><span class="dot"></span></td></tr>
+          <tr><td class="row-label">지영</td><td class="cell done"><span class="dot"></span></td><td class="cell done"><span class="dot"></span></td><td class="cell miss"><span class="dot"></span></td><td class="cell miss"><span class="dot"></span></td><td class="cell today miss"><span class="dot"></span></td></tr>
+          <tr><td class="row-label">현우</td><td class="cell miss"><span class="dot"></span></td><td class="cell done"><span class="dot"></span></td><td class="cell done"><span class="dot"></span></td><td class="cell done"><span class="dot"></span></td><td class="cell today miss"><span class="dot"></span></td></tr>
+        </table></div>
+      </div></div>
+    </div>
+
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>
