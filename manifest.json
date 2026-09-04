@@ -1,7 +1,7 @@
 {
   "name": "습관파티",
   "short_name": "습관파티",
-  "description": "혼자보다 같이, 작은 실천을 파티로 — AI 학습스터디 30일 챌린지",
+  "description": "혼자보다 같이, 작은 실천을 파티로 — AI 프로젝트 19일 자율 완주 챌린지",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -48,7 +48,7 @@ function renderPickList() {
 
   const teamNames = Object.keys(byTeam);
   if (teamNames.length === 0) {
-    box.innerHTML = `<div class="enter-foot" style="margin-top:0;">아직 명단에 이름이 없어요.<br/>스터디 시트 <b>members</b> 탭에서 자기 역할 줄에 이름을 적어주세요.</div>`;
+    box.innerHTML = `<div class="enter-foot" style="margin-top:0;">아직 명단에 이름이 없어요.<br/>통합 카톡방에서 운영자에게 알려주세요.</div>`;
     return;
   }
   teamNames.forEach(team => {
@@ -169,9 +169,9 @@ function logout() {
   go("s-enter");
 }
 
-// 테스트용 — 저장된 모든 것(핀/체크/로그인/팡파레) 삭제하고 처음 상태로
+// 공용 기기 등에서 이 브라우저의 로그인 흔적만 지우고 처음 화면으로
 function resetAll() {
-  if (!confirm("저장된 핀·체크·로그인 기록을 전부 지우고 처음 상태로 돌아갈까요?\n(테스트용)")) return;
+  if (!confirm("이 기기에 저장된 로그인 정보를 지우고 처음 화면으로 돌아갈까요?\n서버의 PIN과 체크인 기록은 유지됩니다.")) return;
   localStorage.clear();
   sessionStorage.clear();
   location.reload();
@@ -260,7 +260,7 @@ async function toggleMission() {
   }
 }
 
-// ── 30일 그리드 (오늘 화면 하단) ─────────────
+// ── 전체 기간 그리드 (오늘 화면 하단) ──────────
 function renderGrid() {
   const ch = Data.challenge();
   const mates = teamMates();
@@ -393,6 +393,7 @@ async function init() {
   refreshIcons();
   // 이 기기에 기억된 로그인이 있으면 바로 입장 (서버에 그 멤버가 있어야)
   const saved = Data.savedMe();
-  if (saved && Data.member(saved)) enter(saved);
+  if (saved && Data.savedPin() && Data.member(saved)) enter(saved);
+  else if (saved) Data.clearMe();
 }
 init();

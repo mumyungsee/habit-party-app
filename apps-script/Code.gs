@@ -15,8 +15,8 @@ const SHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 const TZ = "Asia/Seoul";
 
 // 챌린지 시작일 (여기만 바꾸면 '며칠째'가 자동 계산됨)
-const CHALLENGE_START = "2026-07-27"; // YYYY-MM-DD
-const CHALLENGE_DAYS = 30;
+const CHALLENGE_START = "2026-09-05"; // YYYY-MM-DD
+const CHALLENGE_DAYS = 19;
 
 function _sheet(name) {
   return SpreadsheetApp.openById(SHEET_ID).getSheetByName(name);
@@ -96,7 +96,7 @@ function doPost(e) {
 
   if (action === "setPin")   return _json(_setPin(body.memberId, body.pin));
   if (action === "verifyPin") return _json(_verifyPin(body.memberId, body.pin));
-  if (action === "checkin")  return _json(_checkin(body.memberId, body.done, body.memo));
+  if (action === "checkin")  return _json(_checkin(body.memberId, body.pin, body.done, body.memo));
   return _json({ ok: false, error: "unknown action" });
 }
 
@@ -136,7 +136,8 @@ function _memberName(memberId) {
   return "";
 }
 
-function _checkin(memberId, done, memo) {
+function _checkin(memberId, pin, done, memo) {
+  if (!_verifyPin(memberId, pin).ok) return { ok: false, error: "unauthorized" };
   const day = _todayDay();
   const name = _memberName(memberId);
   const sh = _sheet("checkins");

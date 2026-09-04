@@ -8,13 +8,14 @@
 //  체크인/핀 변경 시 서버로 보내고, 로컬 캐시도 즉시 갱신(낙관적 업데이트).
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbwa7zN9SlMaQVh5MOjqVNHBJWabbo5qHLUBqc0dWCsroOEDvFe2zNN7-QGMS1CvDGva/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz87IJ4vn_IMX5PWEJooPf4Fu4j8f2msyOZS7RH6aOxm-2ct-FE_wkttHurBhvhOH3omw/exec";
 
 const LS_ME = "habitparty_me";
+const LS_PIN = "habitparty_pin";
 
 // 서버에서 받아온 현재 상태 캐시
 const Store = {
-  challenge: { startDate: "", totalDays: 30, today: 1 },
+  challenge: { startDate: "", totalDays: 19, today: 1 },
   members: [],     // {id,name,team,role,mission,emoji,hasPin}
   checkins: [],    // {memberId,day,done,memo}
   loaded: false,
@@ -81,18 +82,27 @@ const Data = {
   hasPin(member) { return !!member.hasPin; },
   async setPin(id, pin) {
     const r = await _post({ action: "setPin", memberId: id, pin });
-    if (r.ok) { const m = this.member(id); if (m) m.hasPin = true; }
+    if (r.ok) {
+      const m = this.member(id);
+      if (m) m.hasPin = true;
+      localStorage.setItem(LS_PIN, pin);
+    }
     return r;
   },
   async verifyPin(id, pin) {
     const r = await _post({ action: "verifyPin", memberId: id, pin });
+    if (r.ok) localStorage.setItem(LS_PIN, pin);
     return r.ok;
   },
 
   // ── 로그인 상태(이 기기) ──
   savedMe() { return localStorage.getItem(LS_ME); },
+  savedPin() { return localStorage.getItem(LS_PIN); },
   setMe(id) { localStorage.setItem(LS_ME, id); },
-  clearMe() { localStorage.removeItem(LS_ME); },
+  clearMe() {
+    localStorage.removeItem(LS_ME);
+    localStorage.removeItem(LS_PIN);
+  },
 
   // ── 체크인 ──
   isChecked(member, day) {
@@ -109,7 +119,10 @@ const Data = {
     if (c) { c.done = val; c.memo = memo || c.memo || ""; }
     else { Store.checkins.push({ memberId: member.id, day, done: val, memo: memo || "" }); }
     // 서버 저장 (실패해도 화면은 일단 반영, 콘솔에 경고)
-    try { await _post({ action: "checkin", memberId: member.id, done: val, memo: memo || "" }); }
+    try {
+      const r = await _post({ action: "checkin", memberId: member.id, pin: this.savedPin(), done: val, memo: memo || "" });
+      if (!r.ok) throw new Error(r.error || "checkin failed");
+    }
     catch (e) { console.warn("체크인 저장 실패(네트워크):", e); }
   },
 
