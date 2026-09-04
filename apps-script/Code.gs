@@ -111,18 +111,33 @@ function _findMemberRow(memberId) {
   return null;
 }
 
+function _withScriptLock(work) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return { ok: false, error: "busy" };
+  try {
+    return work();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function _setPin(memberId, pin) {
-  const m = _findMemberRow(memberId);
-  if (!m) return { ok: false, error: "member not found" };
-  if (m.pin) return { ok: false, error: "이미 핀이 설정됨" };
-  _sheet("members").getRange(m.row, m.pinCol).setValue("'" + pin); // 앞 0 보존
-  return { ok: true };
+  const entered = String(pin == null ? "" : pin);
+  if (!/^\d{4}$/.test(entered)) return { ok: false, error: "PIN은 숫자 4자리여야 함" };
+  return _withScriptLock(() => {
+    const m = _findMemberRow(memberId);
+    if (!m) return { ok: false, error: "member not found" };
+    if (m.pin) return { ok: false, error: "이미 핀이 설정됨" };
+    _sheet("members").getRange(m.row, m.pinCol).setValue("'" + entered); // 앞 0 보존
+    return { ok: true };
+  });
 }
 
 function _verifyPin(memberId, pin) {
   const m = _findMemberRow(memberId);
   if (!m) return { ok: false, error: "member not found" };
-  return { ok: m.pin.replace(/^'/, "") === String(pin) };
+  const entered = String(pin == null ? "" : pin);
+  return { ok: !!m.pin && /^\d{4}$/.test(entered) && m.pin.replace(/^'/, "") === entered };
 }
 
 // memberId → 이름 (members 탭에서 조회)
@@ -137,27 +152,32 @@ function _memberName(memberId) {
 }
 
 function _checkin(memberId, pin, done, memo) {
-  if (!_verifyPin(memberId, pin).ok) return { ok: false, error: "unauthorized" };
-  const day = _todayDay();
-  const name = _memberName(memberId);
-  const sh = _sheet("checkins");
-  const data = sh.getDataRange().getValues();
-  const head = data[0].map(String);
-  const cId = head.indexOf("memberId"), cDay = head.indexOf("day");
-  const now = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss");
-  const today = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd");
-  const rowVals = [memberId, name, day, today, done, memo || "", now]; // 7열: memberId|name|day|date|done|memo|updatedAt
+  if (typeof done !== "boolean") return { ok: false, error: "invalid done" };
+  const cleanMemo = String(memo || "");
+  if (cleanMemo.length > 200) return { ok: false, error: "memo too long" };
+  return _withScriptLock(() => {
+    if (!_verifyPin(memberId, pin).ok) return { ok: false, error: "unauthorized" };
+    const day = _todayDay();
+    const name = _memberName(memberId);
+    const sh = _sheet("checkins");
+    const data = sh.getDataRange().getValues();
+    const head = data[0].map(String);
+    const cId = head.indexOf("memberId"), cDay = head.indexOf("day");
+    const now = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd HH:mm:ss");
+    const today = Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd");
+    const rowVals = [memberId, name, day, today, done, cleanMemo, now]; // 7열: memberId|name|day|date|done|memo|updatedAt
 
-  // 기존 (오늘+이 사람) 행 있으면 덮어쓰기
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][cId]) === String(memberId) && Number(data[i][cDay]) === day) {
-      sh.getRange(i + 1, 1, 1, 7).setValues([rowVals]);
-      SpreadsheetApp.flush();
-      return { ok: true, day };
+    // 기존 (오늘+이 사람) 행 있으면 덮어쓰기
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][cId]) === String(memberId) && Number(data[i][cDay]) === day) {
+        sh.getRange(i + 1, 1, 1, 7).setValues([rowVals]);
+        SpreadsheetApp.flush();
+        return { ok: true, day };
+      }
     }
-  }
-  sh.appendRow(rowVals);
-  return { ok: true, day };
+    sh.appendRow(rowVals);
+    return { ok: true, day };
+  });
 }
 
 function _json(obj) {

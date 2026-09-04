@@ -114,16 +114,14 @@ const Data = {
     return c ? c.done : undefined;
   },
   async setMyCheck(member, day, val, memo) {
-    // 낙관적 업데이트: 로컬 캐시 먼저 갱신
+    // 서버 저장이 확인된 뒤에만 화면 캐시를 바꾼다.
+    // 네트워크/PIN 오류인데도 인증 성공처럼 보이는 일을 막기 위함.
     let c = Store.checkins.find(x => x.memberId === member.id && x.day === day);
+    const r = await _post({ action: "checkin", memberId: member.id, pin: this.savedPin(), done: val, memo: memo || "" });
+    if (!r.ok) throw new Error(r.error || "checkin failed");
     if (c) { c.done = val; c.memo = memo || c.memo || ""; }
     else { Store.checkins.push({ memberId: member.id, day, done: val, memo: memo || "" }); }
-    // 서버 저장 (실패해도 화면은 일단 반영, 콘솔에 경고)
-    try {
-      const r = await _post({ action: "checkin", memberId: member.id, pin: this.savedPin(), done: val, memo: memo || "" });
-      if (!r.ok) throw new Error(r.error || "checkin failed");
-    }
-    catch (e) { console.warn("체크인 저장 실패(네트워크):", e); }
+    return r;
   },
 
   streak(member) {

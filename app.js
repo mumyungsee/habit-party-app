@@ -6,6 +6,8 @@ let me = null;       // 로그인한 멤버 객체
 let pinBuffer = "";  // 핀 입력 중 버퍼
 let pinTarget = null;// 핀 입력 대상 멤버
 let pinMode = "verify"; // "set"(처음) | "verify"(확인)
+let savingMission = false;
+let refreshingState = false;
 
 // ── 아바타(DiceBear Miniavs) ──────────────────
 //  seed = 멤버 id(또는 이름) → 사람마다 고정된 캐릭터.
@@ -172,8 +174,7 @@ function logout() {
 // 공용 기기 등에서 이 브라우저의 로그인 흔적만 지우고 처음 화면으로
 function resetAll() {
   if (!confirm("이 기기에 저장된 로그인 정보를 지우고 처음 화면으로 돌아갈까요?\n서버의 PIN과 체크인 기록은 유지됩니다.")) return;
-  localStorage.clear();
-  sessionStorage.clear();
+  Data.clearMe();
   location.reload();
 }
 
@@ -237,26 +238,32 @@ function teamMates() {
 }
 
 async function toggleMission() {
+  if (savingMission) return;
+  savingMission = true;
   const day = Data.challenge().today;
   const cur = Data.myCheckRaw(me, day) === true;
   const mates = teamMates();
 
-  Data.setMyCheck(me, day, !cur, ""); // 서버 저장(비동기, 내부에서 캐시 먼저 갱신)
-  // 내 칩 점등 애니메이션 (방금 켰을 때만)
-  renderMissions(!cur ? me.id : null);
-  renderGrid();
+  try {
+    await Data.setMyCheck(me, day, !cur, "");
+    // 서버 저장 성공 뒤에만 화면과 축하 효과를 갱신한다.
+    renderMissions(!cur ? me.id : null);
+    renderGrid();
 
-  if (!cur) {
-    // 내가 방금 인증함
-    const everyoneNow = mates.every(p => Data.isChecked(p, day));
-    if (everyoneNow && mates.length > 1) {
-      // 내가 마지막 한 명 → 큰 폭발
-      showToast("우리 파티 전원 완주! 🎉🎉");
-      fireConfetti("big");
-    } else {
-      // 개인 인증 → 작은 팡파레
-      fireConfetti("small");
+    if (!cur) {
+      const everyoneNow = mates.every(p => Data.isChecked(p, day));
+      if (everyoneNow && mates.length > 1) {
+        showToast("우리 파티 전원 완주! 🎉🎉");
+        fireConfetti("big");
+      } else {
+        fireConfetti("small");
+      }
     }
+  } catch (e) {
+    console.error(e);
+    showToast("저장하지 못했어요. 인터넷 연결 후 다시 눌러주세요.");
+  } finally {
+    savingMission = false;
   }
 }
 
@@ -377,6 +384,24 @@ function showToast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 1600);
 }
+
+// PWA를 다음 날 다시 열거나 백그라운드에서 돌아왔을 때 날짜와 파티 기록을 새로 받는다.
+async function refreshWhenVisible() {
+  if (document.visibilityState !== "visible" || refreshingState) return;
+  refreshingState = true;
+  try {
+    const currentId = me && me.id;
+    await Data.reload();
+    if (currentId && Data.member(currentId)) enter(currentId);
+    else if (currentId) logout();
+    else if (!me) renderPickList();
+  } catch (e) {
+    console.warn("최신 기록을 불러오지 못했습니다.", e);
+  } finally {
+    refreshingState = false;
+  }
+}
+document.addEventListener("visibilitychange", refreshWhenVisible);
 
 // ── 시작 ─────────────────────────────────────
 async function init() {

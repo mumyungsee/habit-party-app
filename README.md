@@ -41,6 +41,11 @@ python -m http.server 8123
 ```
 (file:// 로 열면 CORS로 시트 연동 막힘 → 서버나 호스팅 필요)
 
+데이터·백엔드 경계 테스트:
+```
+node --test tests/data.test.cjs tests/backend.test.cjs
+```
+
 ## 배포
 GitHub Pages — https://mumyungsee.github.io/habit-party-app/ (레포 mumyungsee/habit-party-app)
 
