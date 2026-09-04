@@ -9,6 +9,12 @@ let pinMode = "verify"; // "set"(처음) | "verify"(확인)
 let savingMission = false;
 let refreshingState = false;
 
+function escapeHtml(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[ch]);
+}
+
 // ── 아바타(DiceBear Miniavs) ──────────────────
 //  seed = 멤버 id(또는 이름) → 사람마다 고정된 캐릭터.
 //  나중에 멤버에 m.avatarSeed 저장하면 "다시뽑기"로 교체 가능.
@@ -56,7 +62,7 @@ function renderPickList() {
   teamNames.forEach(team => {
     const head = document.createElement("div");
     head.className = "team-head";
-    head.innerHTML = `<i data-lucide="users"></i> ${team}`;
+    head.innerHTML = `<i data-lucide="users"></i> ${escapeHtml(team)}`;
     box.appendChild(head);
     byTeam[team].forEach(m => {
       const el = document.createElement("div");
@@ -64,7 +70,7 @@ function renderPickList() {
       el.onclick = () => choosePerson(m.id);
       el.innerHTML = `
         ${avatarImg(m, "av-md")}
-        <div class="info"><div class="nm">${m.name}</div><div class="rl">${m.role}</div></div>
+        <div class="info"><div class="nm">${escapeHtml(m.name)}</div><div class="rl">${escapeHtml(m.role)}</div></div>
         <span class="arrow"><i data-lucide="chevron-right"></i></span>`;
       box.appendChild(el);
     });
@@ -79,7 +85,7 @@ function choosePerson(id) {
   pinBuffer = "";
   document.getElementById("pinAva").innerHTML = avatarImg(pinTarget, "av-xl");
   document.getElementById("pinName").textContent = pinTarget.name;
-  document.getElementById("pinRole").innerHTML = teamIcon(pinTarget.team) + " " + pinTarget.team + " · " + pinTarget.role;
+  document.getElementById("pinRole").innerHTML = teamIcon(pinTarget.team) + " " + escapeHtml(pinTarget.team) + " · " + escapeHtml(pinTarget.role);
   document.getElementById("pinPrompt").textContent =
     pinMode === "set" ? "처음이시네요! 쓸 비밀번호 4자리를 정해요" : "비밀번호 4자리를 입력하세요";
   document.getElementById("pinErr").textContent = "";
@@ -157,7 +163,7 @@ function enter(id) {
   Data.setMe(id);
   document.getElementById("meAva").innerHTML = avatarImg(me, "av-lg");
   document.getElementById("meName").textContent = me.name;
-  document.getElementById("meRole").innerHTML = teamIcon(me.team) + " " + me.team + " · " + me.role;
+  document.getElementById("meRole").innerHTML = teamIcon(me.team) + " " + escapeHtml(me.team) + " · " + escapeHtml(me.role);
   document.getElementById("todayDay").textContent = Data.challenge().today;
   document.getElementById("todayDate").textContent = new Date().toLocaleDateString("ko-KR", {weekday:"long", month:"long", day:"numeric"});
   renderMissions(); renderGrid();
@@ -191,8 +197,8 @@ function renderMissions(justOnId) {
     <div class="top">
       <div class="check" onclick="toggleMission()">${isDone ? '<i data-lucide="check"></i>' : ""}</div>
       <div class="body">
-        <div class="mtitle">${m.title}${isDone ? ' <span class="done-tag">오늘 인증 완료</span>' : ''}</div>
-        <div class="mteam">${teamIcon(m.team)} ${m.team} · ${m.role}</div>
+        <div class="mtitle">${escapeHtml(m.title)}${isDone ? ' <span class="done-tag">오늘 인증 완료</span>' : ''}</div>
+        <div class="mteam">${teamIcon(m.team)} ${escapeHtml(m.team)} · ${escapeHtml(m.role)}</div>
       </div>
     </div>`;
   list.appendChild(el);
@@ -219,7 +225,7 @@ function renderTodayParty(justOnId) {
       <div class="pbadge"><i data-lucide="check"></i></div>
       ${lead ? '<div class="pcrown"><i data-lucide="crown"></i></div>' : ''}
       <div class="pava">${avatarImg(p, "av-md")}</div>
-      <div class="pnm">${isMe ? "나" : p.name}</div>`;
+      <div class="pnm">${isMe ? "나" : escapeHtml(p.name)}</div>`;
     strip.appendChild(chip);
   });
 
@@ -281,7 +287,7 @@ function renderGrid() {
     allDone[d] = mates.length > 0 && mates.every(p => Data.isChecked(p, d));
   }
   mates.forEach(p => {
-    html += `<tr><td class="row-label">${avatarImg(p, "av-xs")} ${p.name}</td>`;
+    html += `<tr><td class="row-label">${avatarImg(p, "av-xs")} ${escapeHtml(p.name)}</td>`;
     for (let d = 1; d <= ch.totalDays; d++) {
       let cls = "miss";
       let on = false;

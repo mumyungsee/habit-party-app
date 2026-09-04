@@ -91,13 +91,18 @@ function doGet(e) {
 
 // ── POST: 핀 설정/확인, 체크인 저장 ──────────
 function doPost(e) {
-  const body = JSON.parse(e.postData.contents);
-  const action = body.action;
+  try {
+    if (!e || !e.postData || !e.postData.contents) return _json({ ok: false, error: "bad request" });
+    const body = JSON.parse(e.postData.contents);
+    const action = body.action;
 
-  if (action === "setPin")   return _json(_setPin(body.memberId, body.pin));
-  if (action === "verifyPin") return _json(_verifyPin(body.memberId, body.pin));
-  if (action === "checkin")  return _json(_checkin(body.memberId, body.pin, body.done, body.memo));
-  return _json({ ok: false, error: "unknown action" });
+    if (action === "setPin")   return _json(_setPin(body.memberId, body.pin));
+    if (action === "verifyPin") return _json(_verifyPin(body.memberId, body.pin));
+    if (action === "checkin")  return _json(_checkin(body.memberId, body.pin, body.done, body.memo));
+    return _json({ ok: false, error: "unknown action" });
+  } catch (err) {
+    return _json({ ok: false, error: "bad request" });
+  }
 }
 
 function _findMemberRow(memberId) {

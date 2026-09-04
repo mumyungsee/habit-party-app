@@ -27,7 +27,13 @@ function loadBackend(nowIso) {
       getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }),
     },
     Utilities: {},
-    ContentService: {},
+    ContentService: {
+      MimeType: { JSON: "json" },
+      createTextOutput: (text) => ({
+        text,
+        setMimeType() { return this; },
+      }),
+    },
   });
   const source = fs.readFileSync(path.join(__dirname, "..", "apps-script", "Code.gs"), "utf8");
   vm.runInContext(source, context);
@@ -78,4 +84,10 @@ test("서울 시간 기준 시작일은 1일 차이고 마지막 날 이후에�
   assert.equal(start._todayDay(), 1);
   assert.equal(end._todayDay(), 19);
   assert.equal(after._todayDay(), 19);
+});
+
+test("깨진 JSON 요청도 JSON 오류 응답으로 돌려준다", () => {
+  const { context } = loadBackend();
+  const output = context.doPost({ postData: { contents: "{" } });
+  assert.deepEqual(JSON.parse(output.text), { ok: false, error: "bad request" });
 });
