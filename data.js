@@ -15,7 +15,7 @@ const LS_PIN = "habitparty_pin";
 
 // 서버에서 받아온 현재 상태 캐시
 const Store = {
-  challenge: { startDate: "", totalDays: 19, today: 1 },
+  challenge: { startDate: "2026-09-07", totalDays: 17, today: 1, canCheckIn: false },
   members: [],     // {id,name,team,role,mission,emoji,hasPin}
   checkins: [],    // {memberId,day,done,memo}
   loaded: false,

@@ -186,7 +186,10 @@ function enter(id) {
   document.getElementById("meAva").innerHTML = avatarImg(me, "av-lg");
   document.getElementById("meName").textContent = me.name;
   document.getElementById("meRole").innerHTML = teamIcon(me.team) + " " + escapeHtml(me.team) + " · " + escapeHtml(me.role);
-  document.getElementById("todayDay").textContent = Data.challenge().today;
+  const challenge = Data.challenge();
+  document.getElementById("dayHeroText").innerHTML = challenge.canCheckIn
+    ? `챌린지 <b id="todayDay">${challenge.today}</b>일째`
+    : '실행 인증은 <b id="todayDay">9월 7일</b> 시작';
   document.getElementById("todayDate").textContent = new Date().toLocaleDateString("ko-KR", {weekday:"long", month:"long", day:"numeric"});
   renderMissions(); renderGrid();
   go("s-today");
@@ -211,15 +214,16 @@ function renderMissions(justOnId) {
   const list = document.getElementById("missionList");
   list.innerHTML = "";
   const m = Data.missionFor(me);
-  const day = Data.challenge().today;
+  const challenge = Data.challenge();
+  const day = challenge.today;
   const isDone = Data.myCheckRaw(me, day) === true;
   const el = document.createElement("div");
   el.className = "mission" + (isDone ? " done" : "");
   el.innerHTML = `
     <div class="top">
-      <div class="check" onclick="toggleMission()">${isDone ? '<i data-lucide="check"></i>' : ""}</div>
+      <div class="check"${challenge.canCheckIn ? ' onclick="toggleMission()"' : ''}>${isDone ? '<i data-lucide="check"></i>' : ""}</div>
       <div class="body">
-        <div class="mtitle">${escapeHtml(m.title)}${isDone ? ' <span class="done-tag">오늘 인증 완료</span>' : ''}</div>
+        <div class="mtitle">${challenge.canCheckIn ? escapeHtml(m.title) : '실행 인증은 9월 7일부터 시작해요'}${isDone ? ' <span class="done-tag">오늘 인증 완료</span>' : ''}</div>
         <div class="mteam">${teamIcon(m.team)} ${escapeHtml(m.team)} · ${escapeHtml(m.role)}</div>
       </div>
     </div>`;
@@ -235,7 +239,7 @@ function renderTodayParty(justOnId) {
   const mates = teamMates();
   const strip = document.getElementById("partyStrip");
   strip.innerHTML = "";
-  const done = mates.filter(p => Data.isChecked(p, ch.today)).length;
+  const done = ch.canCheckIn ? mates.filter(p => Data.isChecked(p, ch.today)).length : 0;
   const progress = teamProgress(done, mates.length);
   strip.className = `party-strip cols-${partyColumns(mates.length)} stage-${progress.stage}`;
 
@@ -257,7 +261,8 @@ function renderTodayParty(justOnId) {
   const left = mates.length - done;
   const msg = document.getElementById("partyMsg");
   msg.className = `party-msg stage-${progress.stage}`;
-  if (progress.stage === "blaze") msg.innerHTML = "🔥🔥🔥 우리 파티 <b>전원 불꽃!</b>";
+  if (!ch.canCheckIn) msg.innerHTML = "실행 인증은 9월 7일 1일차부터 시작해요";
+  else if (progress.stage === "blaze") msg.innerHTML = "🔥🔥🔥 우리 파티 <b>전원 불꽃!</b>";
   else if (left === 1 && Data.myCheckRaw(me, ch.today) !== true)
     msg.innerHTML = "<b>나 하나 남았어요!</b> 내가 채우면 전원 불꽃";
   else if (progress.stage === "hot")
@@ -276,6 +281,10 @@ function teamMates() {
 }
 
 async function toggleMission() {
+  if (!Data.challenge().canCheckIn) {
+    showToast("실행 인증은 9월 7일부터 시작해요.");
+    return;
+  }
   if (savingMission) return;
   savingMission = true;
   const day = Data.challenge().today;
@@ -313,14 +322,15 @@ async function toggleMission() {
 // ── 전체 기간 그리드 (오늘 화면 하단) ──────────
 function renderGrid() {
   const ch = Data.challenge();
+  const visibleToday = ch.canCheckIn ? ch.today : 0;
   const mates = teamMates();
   const t = document.getElementById("grid");
   let html = "<tr><th class='row-label'></th>";
-  for (let d = 1; d <= ch.totalDays; d++) html += `<th class="col-day ${d===ch.today?"today":""}">${d}</th>`;
+  for (let d = 1; d <= ch.totalDays; d++) html += `<th class="col-day ${d===visibleToday?"today":""}">${d}</th>`;
   html += "</tr>";
   // 날짜별 체크율 단계. 절반부터 불꽃, 2/3부터 빨간 불꽃, 전원은 큰 불꽃.
   const progressByDay = {};
-  for (let d = 1; d <= ch.today; d++) {
+  for (let d = 1; d <= visibleToday; d++) {
     const done = mates.filter(p => Data.isChecked(p, d)).length;
     progressByDay[d] = teamProgress(done, mates.length);
   }
@@ -329,8 +339,8 @@ function renderGrid() {
     for (let d = 1; d <= ch.totalDays; d++) {
       let cls = "miss";
       let on = false;
-      if (d <= ch.today) { on = Data.isChecked(p, d); cls = on ? "done" : "miss"; }
-      if (d === ch.today) cls += " today";
+      if (d <= visibleToday) { on = Data.isChecked(p, d); cls = on ? "done" : "miss"; }
+      if (d === visibleToday) cls += " today";
       const progress = progressByDay[d] || teamProgress(0, mates.length);
       const fire = on && progress.flame;
       if (on) cls += ` stage-${progress.stage}`;

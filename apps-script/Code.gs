@@ -15,8 +15,8 @@ const SHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
 const TZ = "Asia/Seoul";
 
 // 챌린지 시작일 (여기만 바꾸면 '며칠째'가 자동 계산됨)
-const CHALLENGE_START = "2026-09-05"; // YYYY-MM-DD
-const CHALLENGE_DAYS = 19;
+const CHALLENGE_START = "2026-09-07"; // YYYY-MM-DD
+const CHALLENGE_DAYS = 17;
 
 function _sheet(name) {
   return SpreadsheetApp.openById(SHEET_ID).getSheetByName(name);
@@ -37,12 +37,19 @@ function _rows(name) {
     });
 }
 
-// 오늘이 챌린지 며칠째인지
-function _todayDay() {
+// 오늘의 인증 상태. 시작 전에는 1일차를 보여주되 저장은 막는다.
+function _challengeState() {
   const start = new Date(CHALLENGE_START + "T00:00:00+09:00");
   const now = new Date();
   const days = Math.floor((now - start) / 86400000) + 1;
-  return Math.max(1, Math.min(CHALLENGE_DAYS, days));
+  return {
+    today: Math.max(1, Math.min(CHALLENGE_DAYS, days)),
+    canCheckIn: days >= 1 && days <= CHALLENGE_DAYS,
+  };
+}
+
+function _todayDay() {
+  return _challengeState().today;
 }
 
 // id 없으면 name 기반으로 생성 (한글이면 row 번호로)
@@ -82,9 +89,15 @@ function doGet(e) {
     done: c.done === true || String(c.done).toLowerCase() === "true",
     memo: String(c.memo || ""),
   }));
+  const challenge = _challengeState();
   return _json({
     ok: true,
-    challenge: { startDate: CHALLENGE_START, totalDays: CHALLENGE_DAYS, today: _todayDay() },
+    challenge: {
+      startDate: CHALLENGE_START,
+      totalDays: CHALLENGE_DAYS,
+      today: challenge.today,
+      canCheckIn: challenge.canCheckIn,
+    },
     members, checkins,
   });
 }
@@ -162,7 +175,9 @@ function _checkin(memberId, pin, done, memo) {
   if (cleanMemo.length > 200) return { ok: false, error: "memo too long" };
   return _withScriptLock(() => {
     if (!_verifyPin(memberId, pin).ok) return { ok: false, error: "unauthorized" };
-    const day = _todayDay();
+    const challenge = _challengeState();
+    if (!challenge.canCheckIn) return { ok: false, error: "checkin closed" };
+    const day = challenge.today;
     const name = _memberName(memberId);
     const sh = _sheet("checkins");
     const data = sh.getDataRange().getValues();

@@ -76,14 +76,28 @@ test("체크인 완료값은 참·거짓만 받는다", () => {
   assert.deepEqual(JSON.parse(JSON.stringify(result)), { ok: false, error: "invalid done" });
 });
 
-test("서울 시간 기준 시작일은 1일 차이고 마지막 날 이후에는 19일로 고정한다", () => {
-  const start = loadBackend("2026-09-05T12:00:00+09:00").context;
+test("서울 시간 기준 9월 7일은 1일 차이고 인증 기간은 17일이다", () => {
+  const before = loadBackend("2026-09-06T12:00:00+09:00").context;
+  const start = loadBackend("2026-09-07T12:00:00+09:00").context;
   const end = loadBackend("2026-09-23T12:00:00+09:00").context;
   const after = loadBackend("2026-09-24T12:00:00+09:00").context;
 
+  assert.equal(before._challengeState().canCheckIn, false);
+  assert.equal(before._todayDay(), 1);
   assert.equal(start._todayDay(), 1);
-  assert.equal(end._todayDay(), 19);
-  assert.equal(after._todayDay(), 19);
+  assert.equal(start._challengeState().canCheckIn, true);
+  assert.equal(end._todayDay(), 17);
+  assert.equal(end._challengeState().canCheckIn, true);
+  assert.equal(after._todayDay(), 17);
+  assert.equal(after._challengeState().canCheckIn, false);
+});
+
+test("시작 전에는 PIN이 맞아도 체크인을 저장하지 않는다", () => {
+  const { context } = loadBackend("2026-09-06T12:00:00+09:00");
+  context._verifyPin = () => ({ ok: true });
+
+  const result = context._checkin("m01", "0123", true, "");
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), { ok: false, error: "checkin closed" });
 });
 
 test("깨진 JSON 요청도 JSON 오류 응답으로 돌려준다", () => {
