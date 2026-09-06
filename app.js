@@ -410,6 +410,24 @@ async function refreshWhenVisible() {
 document.addEventListener("visibilitychange", refreshWhenVisible);
 
 // ── 시작 ─────────────────────────────────────
+async function verifiedSavedMemberId() {
+  const saved = Data.savedMe();
+  const pin = Data.savedPin();
+  if (!saved || !pin || !Data.member(saved)) {
+    if (saved || pin) Data.clearMe();
+    return null;
+  }
+  try {
+    if (await Data.verifyPin(saved, pin)) return saved;
+  } catch (e) {
+    // GET은 성공했지만 PIN 확인 요청만 일시 실패한 경우에는 저장값을 지우지 않는다.
+    console.warn("저장된 로그인을 확인하지 못했습니다.", e);
+    return null;
+  }
+  Data.clearMe();
+  return null;
+}
+
 async function init() {
   const pickBox = document.getElementById("pickList");
   pickBox.innerHTML = `<div class="enter-foot" style="margin-top:0;">불러오는 중...</div>`;
@@ -422,9 +440,8 @@ async function init() {
   }
   renderPickList();
   refreshIcons();
-  // 이 기기에 기억된 로그인이 있으면 바로 입장 (서버에 그 멤버가 있어야)
-  const saved = Data.savedMe();
-  if (saved && Data.savedPin() && Data.member(saved)) enter(saved);
-  else if (saved) Data.clearMe();
+  // 서버에서도 PIN이 유효한 경우에만 기억된 로그인으로 자동 입장한다.
+  const saved = await verifiedSavedMemberId();
+  if (saved) enter(saved);
 }
 init();
