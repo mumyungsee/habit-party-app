@@ -16,6 +16,9 @@
   --ok: #2d3a5e;           /* 완료 = 포인트와 한 색(절제) */
   --ok-soft: #eef0f5;
   --danger: #c0524d;
+  --fire-warm: #df8a32;
+  --fire-hot: #dc4f3f;
+  --fire-blaze: #b92f36;
 
   --r: 16px;               /* 기본 라운드 */
   --r-sm: 12px;
@@ -154,11 +157,16 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
 .finish-btn:active { transform: scale(.98); }
 .finish-btn.ready { opacity: 1; }
 
-/* 오늘 화면 - 우리 파티 가로 스트립 */
-.party-strip { display: flex; gap: 10px; overflow-x: auto; overflow-y: visible; padding: 9px 4px 6px; }
-.party-strip::-webkit-scrollbar { display: none; }
+/* 오늘 화면 - 6명은 3×2, 7명은 4+3. 스크롤 없이 파티 전체를 한눈에 본다. */
+.party-strip {
+  display: grid; gap: 10px; overflow: visible; padding: 9px 4px 6px;
+}
+.party-strip.cols-1 { grid-template-columns: 1fr; }
+.party-strip.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.party-strip.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.party-strip.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .pchip {
-  flex: 1 0 auto; min-width: 62px; text-align: center;
+  min-width: 0; text-align: center;
   background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
   padding: 12px 6px 9px; position: relative; transition: all .3s; box-shadow: var(--shadow);
 }
@@ -166,7 +174,7 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
 .pchip .pava .av { width: 38px; height: 38px; opacity: .4; }
 .pchip .pnm {
   font-size: 11px; color: var(--text3); margin: 7px auto 0; font-weight: 500;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
   text-align: center;
 }
 .pchip .pbadge {
@@ -187,13 +195,24 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
 .pchip.on .pbadge { display: flex; }
 .pchip.me.on { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; }
 .pchip.me .pnm { color: var(--brand); }
+.party-strip.stage-warm .pchip.on { border-color: #efc58f; background: #fff8ef; }
+.party-strip.stage-warm .pchip.on .pbadge { background: var(--fire-warm); }
+.party-strip.stage-hot .pchip.on { border-color: #e9a49b; background: #fff3f1; }
+.party-strip.stage-hot .pchip.on .pbadge { background: var(--fire-hot); }
+.party-strip.stage-blaze .pchip.on {
+  border-color: var(--fire-blaze); background: #fff0f0;
+  box-shadow: 0 0 0 1px rgba(185,47,54,.14), 0 5px 16px rgba(185,47,54,.12);
+}
+.party-strip.stage-blaze .pchip.on .pbadge { background: var(--fire-blaze); }
 /* 방금 켜진 칩 펄스 */
 @keyframes lightUp { 0% { transform: scale(.85); } 50% { transform: scale(1.18); } 100% { transform: scale(1); } }
 .pchip.just-on .pava { animation: lightUp .5s; }
 
 .party-msg { text-align: center; font-size: 13px; color: var(--text2); margin: 8px 4px 0; line-height: 1.5; }
 .party-msg b { color: var(--brand); }
-.party-msg.win b { color: var(--ok); }
+.party-msg.stage-warm b { color: var(--fire-warm); }
+.party-msg.stage-hot b { color: var(--fire-hot); }
+.party-msg.stage-blaze b { color: var(--fire-blaze); }
 
 /* 팀 보드 */
 .board-head { display: flex; align-items: baseline; justify-content: space-between; }
@@ -233,7 +252,12 @@ th, td { text-align: center; }
 .cell { width: 18px; height: 20px; padding: 1px 0; }
 .cell [data-lucide] { font-size: 13px; }
 .cell.done { color: var(--ok); }
-.cell.fire { color: #e8742c; }   /* 팀 전원완주한 날 = 불꽃 */
+.cell.stage-warm { color: var(--fire-warm); }
+.cell.stage-hot { color: var(--fire-hot); }
+.cell.stage-blaze { color: var(--fire-blaze); }
+.cell.stage-blaze [data-lucide] {
+  filter: drop-shadow(0 1px 2px rgba(185,47,54,.3));
+}
 .cell.miss .miss-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); display: inline-block; }
 .cell.today { box-shadow: 0 0 0 1.5px var(--brand) inset; border-radius: 5px; }
 

@@ -45,6 +45,28 @@ function teamIcon(team) {
   return `<i data-lucide="${TEAM_ICON[team] || "users"}"></i>`;
 }
 
+// 팀 체크율을 다섯 단계로 바꾼다.
+// 6명은 3명부터 불꽃·4명부터 빨간 불꽃, 7명은 4명·5명부터 같은 단계가 된다.
+function teamProgress(doneCount, totalCount) {
+  const total = Math.max(0, Number(totalCount) || 0);
+  const done = Math.min(total, Math.max(0, Number(doneCount) || 0));
+  const ratio = total > 0 ? done / total : 0;
+
+  if (total > 0 && done === total) return { stage: "blaze", done, total, ratio, flame: true };
+  if (ratio >= 2 / 3) return { stage: "hot", done, total, ratio, flame: true };
+  if (ratio >= 1 / 2) return { stage: "warm", done, total, ratio, flame: true };
+  if (done > 0) return { stage: "lit", done, total, ratio, flame: false };
+  return { stage: "empty", done, total, ratio, flame: false };
+}
+
+// 한 화면에 모두 보이도록 6명은 3×2, 7명은 4+3으로 배치한다.
+function partyColumns(totalCount) {
+  const total = Math.max(0, Number(totalCount) || 0);
+  if (total >= 7) return 4;
+  if (total >= 5) return 3;
+  return Math.max(1, total);
+}
+
 // ── ⓪ 입장: 이름 목록 (시트에 이름 적은 사람만) ──
 function renderPickList() {
   const box = document.getElementById("pickList");
@@ -213,16 +235,19 @@ function renderTodayParty(justOnId) {
   const mates = teamMates();
   const strip = document.getElementById("partyStrip");
   strip.innerHTML = "";
-  let done = 0;
+  const done = mates.filter(p => Data.isChecked(p, ch.today)).length;
+  const progress = teamProgress(done, mates.length);
+  strip.className = `party-strip cols-${partyColumns(mates.length)} stage-${progress.stage}`;
+
   mates.forEach(p => {
     const on = Data.isChecked(p, ch.today);
-    if (on) done++;
     const isMe = p.id === me.id;
     const chip = document.createElement("div");
     chip.className = "pchip" + (on ? " on" : "") + (isMe ? " me" : "") + (on && p.id === justOnId ? " just-on" : "");
     const lead = p.role === "서포터즈";   // 팀 리더 표시
+    const badgeIcon = progress.flame ? "flame" : "check";
     chip.innerHTML = `
-      <div class="pbadge"><i data-lucide="check"></i></div>
+      <div class="pbadge"><i data-lucide="${badgeIcon}"></i></div>
       ${lead ? '<div class="pcrown"><i data-lucide="crown"></i></div>' : ''}
       <div class="pava">${avatarImg(p, "av-md")}</div>
       <div class="pnm">${isMe ? "나" : escapeHtml(p.name)}</div>`;
@@ -231,11 +256,18 @@ function renderTodayParty(justOnId) {
 
   const left = mates.length - done;
   const msg = document.getElementById("partyMsg");
-  msg.classList.remove("win");
-  if (done === mates.length) { msg.classList.add("win"); msg.innerHTML = "우리 파티 <b>전원 완주!</b>"; }
+  msg.className = `party-msg stage-${progress.stage}`;
+  if (progress.stage === "blaze") msg.innerHTML = "🔥🔥🔥 우리 파티 <b>전원 불꽃!</b>";
   else if (left === 1 && Data.myCheckRaw(me, ch.today) !== true)
-    msg.innerHTML = "<b>나 하나 남았어요!</b> 내가 채우면 파티 완성";
-  else msg.innerHTML = `${done}/${mates.length}명 완료 · ${left}명 남음`;
+    msg.innerHTML = "<b>나 하나 남았어요!</b> 내가 채우면 전원 불꽃";
+  else if (progress.stage === "hot")
+    msg.innerHTML = `🔥 <b>빨간 불꽃!</b> ${done}/${mates.length}명 완료`;
+  else if (progress.stage === "warm")
+    msg.innerHTML = `🔥 <b>불꽃이 붙었어요!</b> ${done}/${mates.length}명 완료`;
+  else if (progress.stage === "lit")
+    msg.innerHTML = `${done}/${mates.length}명 완료 · 함께 불씨를 모으는 중`;
+  else
+    msg.innerHTML = "오늘 첫 불씨를 기다리고 있어요";
 }
 
 // 내 팀에서 이름 있는(실제 앉은) 사람들
@@ -249,6 +281,7 @@ async function toggleMission() {
   const day = Data.challenge().today;
   const cur = Data.myCheckRaw(me, day) === true;
   const mates = teamMates();
+  const before = teamProgress(mates.filter(p => Data.isChecked(p, day)).length, mates.length);
 
   try {
     await Data.setMyCheck(me, day, !cur, "");
@@ -257,11 +290,15 @@ async function toggleMission() {
     renderGrid();
 
     if (!cur) {
-      const everyoneNow = mates.every(p => Data.isChecked(p, day));
-      if (everyoneNow && mates.length > 1) {
-        showToast("우리 파티 전원 완주! 🎉🎉");
+      const after = teamProgress(mates.filter(p => Data.isChecked(p, day)).length, mates.length);
+      if (after.stage === "blaze" && mates.length > 1) {
+        showToast("우리 파티 전원 불꽃! 🎉🎉");
         fireConfetti("big");
       } else {
+        if (after.stage !== before.stage && after.stage === "hot")
+          showToast("우리 파티 빨간 불꽃! 🔥");
+        else if (after.stage !== before.stage && after.stage === "warm")
+          showToast("우리 파티에 불꽃이 붙었어요! 🔥");
         fireConfetti("small");
       }
     }
@@ -281,10 +318,11 @@ function renderGrid() {
   let html = "<tr><th class='row-label'></th>";
   for (let d = 1; d <= ch.totalDays; d++) html += `<th class="col-day ${d===ch.today?"today":""}">${d}</th>`;
   html += "</tr>";
-  // 날짜별 "팀 전원 인증 완료" 여부 미리 계산 (전원완주 날 = 보석)
-  const allDone = {};
+  // 날짜별 체크율 단계. 절반부터 불꽃, 2/3부터 빨간 불꽃, 전원은 큰 불꽃.
+  const progressByDay = {};
   for (let d = 1; d <= ch.today; d++) {
-    allDone[d] = mates.length > 0 && mates.every(p => Data.isChecked(p, d));
+    const done = mates.filter(p => Data.isChecked(p, d)).length;
+    progressByDay[d] = teamProgress(done, mates.length);
   }
   mates.forEach(p => {
     html += `<tr><td class="row-label">${avatarImg(p, "av-xs")} ${escapeHtml(p.name)}</td>`;
@@ -293,8 +331,9 @@ function renderGrid() {
       let on = false;
       if (d <= ch.today) { on = Data.isChecked(p, d); cls = on ? "done" : "miss"; }
       if (d === ch.today) cls += " today";
-      const fire = on && allDone[d];          // 본인 인증 + 그날 팀 전원완주
-      if (fire) cls += " fire";
+      const progress = progressByDay[d] || teamProgress(0, mates.length);
+      const fire = on && progress.flame;
+      if (on) cls += ` stage-${progress.stage}`;
       const inner = fire ? '<i data-lucide="flame"></i>'
                   : on   ? '<i data-lucide="check"></i>'
                          : '<span class="miss-dot"></span>';
