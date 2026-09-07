@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>습관파티 운영 현황</title>
+  <link rel="stylesheet" href="operator.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">운영 현황 · 읽기 전용 · <a href="./">운영 도구로</a></p>
+        <h1>습관파티 운영 현황</h1>
+        <p id="updatedAt" class="muted">아직 불러오지 않았어.</p>
+      </div>
+      <button id="reloadButton" type="button">다시 불러오기</button>
+    </header>
+
+    <section id="status" class="status" aria-live="polite">운영 데이터를 불러오는 중…</section>
+
+    <section id="summary" class="cards" hidden></section>
+    <section id="teams" hidden>
+      <h2>파티별 오늘 현황</h2>
+      <div id="teamCards" class="cards"></div>
+    </section>
+    <section id="people" hidden>
+      <h2>참가자별 진행</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>이름</th><th>파티</th><th>오늘</th><th>누적</th><th>마지막</th><th>확인</th></tr></thead>
+          <tbody id="peopleRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <p class="safety">이 화면에는 저장·수정·삭제 기능이 없어. 운영 API에는 GET 요청만 보낸다.</p>
+  </main>
+  <script src="config.js"></script>
+  <script src="report.js"></script>
+  <script src="operator.js"></script>
+</body>
+</html>

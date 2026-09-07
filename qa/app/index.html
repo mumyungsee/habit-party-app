@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>습관파티 · 테스트 전용</title>
+
+<!-- PWA (홈 화면에 추가 → 앱처럼 사용) -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#2d3a5e" />
+<link rel="icon" href="icon-192.png" />
+<!-- 아이폰(사파리)용 -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="습관파티" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+
+<link rel="stylesheet" href="style.css?v=20260906-3" />
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<!-- PWA 설치 이벤트는 페이지 로드 직후 바로 발생하므로, 놓치지 않게 head에서 미리 잡아둠 -->
+<script>
+  window.__deferredPrompt = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    window.__deferredPrompt = e;
+    document.dispatchEvent(new Event("pwa-installable"));
+  });
+  window.addEventListener("appinstalled", () => { window.__deferredPrompt = null; });
+</script>
+</head>
+<body>
+<aside style="background:#fff2c6;padding:12px;text-align:center">테스트 전용 · 실제 참가자 기록과 분리됨 · 화면 기준 22d82ae<br><a href="../">운영 도구로 돌아가기</a></aside><div class="app">
+
+  <!-- ⓪ 입장: 이름 선택 → 핀 -->
+  <section class="screen active" id="s-enter">
+    <div class="enter-hero">
+      <div class="logo"><i data-lucide="party-popper"></i></div>
+      <h1>습관파티</h1>
+      <div class="sub">혼자보다 같이, 작은 실천을 파티로<br/>추석 전, AI로 끝내는 내 프로젝트 · 실행 인증 17일</div>
+    </div>
+
+    <!-- 1단계: 이름 선택 -->
+    <div id="step-pick">
+      <div class="section-title">나는 누구인가요?</div>
+      <div class="pick-list" id="pickList"></div>
+      <div class="enter-foot">본인 이름만 선택해주세요.<br/>명단에 없거나 PIN을 잊었다면 통합 카톡방에서 운영자에게 알려주세요.</div>
+      <button class="reset-btn" onclick="resetAll()">이 기기 로그인 초기화</button>
+    </div>
+
+    <!-- 2단계: 핀 입력 -->
+    <div id="step-pin" style="display:none;">
+      <button class="back" onclick="backToPick()"><i data-lucide="chevron-left"></i> 다른 사람 선택</button>
+      <div class="pin-card">
+        <div class="pin-ava" id="pinAva"></div>
+        <div class="pin-name" id="pinName">이름</div>
+        <div class="pin-role" id="pinRole">팀 · 역할</div>
+        <div class="pin-prompt" id="pinPrompt">비밀번호 4자리를 입력하세요</div>
+        <div class="pin-dots" id="pinDots"></div>
+        <div class="pin-pad" id="pinPad"></div>
+        <div class="pin-err" id="pinErr"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ① 오늘 인증 -->
+  <section class="screen" id="s-today">
+    <div class="me-bar">
+      <span class="me-ava" id="meAva"></span>
+      <div>
+        <div class="nm" id="meName">나</div>
+        <div class="rl" id="meRole">역할</div>
+      </div>
+      <button class="logout" onclick="logout()"><i data-lucide="repeat-2"></i> 바꾸기</button>
+    </div>
+    <div class="day-hero" id="dayHeroText">
+      <div class="big">챌린지 <b id="todayDay">12</b>일째</div>
+      <div class="date" id="todayDate"></div>
+    </div>
+
+    <div class="section-title">오늘 우리 파티</div>
+    <div class="party-strip" id="partyStrip"></div>
+    <div class="party-msg" id="partyMsg"></div>
+
+    <div class="section-title">오늘의 미션</div>
+    <div id="missionList"></div>
+
+    <div class="section-title">우리 파티 17일 실행 기록</div>
+    <div class="grid-box"><div class="grid-scroll"><table id="grid"></table></div></div>
+  </section>
+
+  <div class="toast" id="toast">완료!</div>
+  <canvas id="confetti"></canvas>
+</div>
+
+<!-- PWA 설치: 안드로이드=버튼 / 아이폰=안내 (조건 맞을 때만 표시) -->
+<button class="pwa-install" id="pwaInstall" onclick="installPWA()" style="display:none;">
+  <i data-lucide="download"></i> 홈 화면에 앱으로 추가
+</button>
+<!-- 아이폰: 사파리 공유 안내 -->
+<div class="pwa-guide" id="pwaGuide" style="display:none;">
+  <div class="pwa-guide-card">
+    <button class="pwa-guide-x" onclick="closePwaGuide('pwaGuide')"><i data-lucide="x"></i></button>
+    <div class="pwa-guide-ttl">앱처럼 쓰기 <i data-lucide="party-popper"></i></div>
+    <div class="pwa-guide-body">
+      아래 <b>공유 버튼 <i data-lucide="share"></i></b> 을 누르고<br/>
+      <b>'홈 화면에 추가'</b> 를 선택하면<br/>
+      바탕화면에 습관파티 앱이 생겨요.
+    </div>
+  </div>
+</div>
+
+<!-- 안드로이드: 자동설치 불가 시 메뉴 안내 -->
+<div class="pwa-guide" id="pwaGuideAos" style="display:none;">
+  <div class="pwa-guide-card">
+    <button class="pwa-guide-x" onclick="closePwaGuide('pwaGuideAos')"><i data-lucide="x"></i></button>
+    <div class="pwa-guide-ttl">앱처럼 쓰기 <i data-lucide="party-popper"></i></div>
+    <div class="pwa-guide-body">
+      우측 상단 <b>점 세 개 <i data-lucide="more-vertical"></i></b> 를 누르고<br/>
+      <b>'앱 설치'</b> 또는 <b>'홈 화면에 추가'</b> 를 선택하면<br/>
+      바탕화면에 습관파티 앱이 생겨요.
+    </div>
+  </div>
+</div>
+
+<script src="data.js?v=20260907-2"></script>
+<script src="app.js?v=20260907-3"></script>
+<script>
+  // ── 서비스워커 등록 (PWA 필수) + 새 버전 자동 반영 ──
+  // 코드를 새로 배포하면, 앱을 열어둔 사람도 캐시 버전을 손댈 필요 없이 자동으로 최신을 받음.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").then((reg) => {
+        // 이미 대기 중인 새 SW가 있으면 즉시 켜라고 요청
+        if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
+        // 새 SW가 감지되면(=새 코드 배포) 설치 완료되는 대로 켜기
+        reg.addEventListener("updatefound", () => {
+          const sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener("statechange", () => {
+            if (sw.state === "installed" && navigator.serviceWorker.controller) {
+              sw.postMessage("SKIP_WAITING");
+            }
+          });
+        });
+        // 페이지 복귀 시(카톡→앱 재진입 등) 업데이트 확인
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") reg.update().catch(()=>{});
+        });
+      }).catch(()=>{});
+
+      // 새 SW가 제어권을 잡으면 페이지를 한 번만 새로고침 → 최신 화면
+      let refreshed = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (refreshed) return;
+        refreshed = true;
+        window.location.reload();
+      });
+    });
+  }
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+  // 사파리(아이폰)인지 — 카톡/크롬 인앱이 아닌 진짜 사파리에서만 '홈 화면 추가'가 됨
+  const isRealSafari = isIOS && /safari/i.test(navigator.userAgent) && !/crios|fxios|kakaotalk|naver|line/i.test(navigator.userAgent);
+  const btn = document.getElementById("pwaInstall");
+  // 한 번 설치했으면 기록 — 브라우저로 다시 열어도 버튼 안 뜨게
+  let alreadyInstalled = isStandalone;
+  try { alreadyInstalled ||= localStorage.getItem("pwaQaInstalled") === "1"; } catch (_) {}
+
+  // 설치는 '보너스'. 설치 가능 + 아직 설치 안 한 환경에서만 조용히 버튼 노출.
+  function showBtn() { if (!alreadyInstalled) btn.style.display = "inline-flex"; }
+  if (window.__deferredPrompt) showBtn();
+  document.addEventListener("pwa-installable", showBtn);
+  if (isRealSafari && !alreadyInstalled) showBtn();
+
+  // 설치 버튼 클릭 → 상황별 처리
+  function installPWA() {
+    const dp = window.__deferredPrompt;
+    if (dp) {
+      dp.prompt();
+      dp.userChoice.then((c) => {
+        if (c && c.outcome === "accepted") markInstalled();
+      }).finally(() => {
+        window.__deferredPrompt = null;
+        btn.style.display = "none";
+      });
+    } else if (isIOS) {
+      openGuide("pwaGuide");          // 아이폰 → 사파리 공유 안내
+    } else {
+      openGuide("pwaGuideAos");       // 안드로이드 폴백 → 메뉴 안내
+    }
+  }
+
+  // 설치 완료 → 기록 남기고 버튼 영구 숨김
+  function markInstalled() {
+    try { localStorage.setItem("pwaQaInstalled", "1"); } catch (_) {}
+    btn.style.display = "none";
+  }
+  window.addEventListener("appinstalled", markInstalled);
+
+  function openGuide(id) {
+    document.getElementById(id).style.display = "block";
+    if (window.lucide) lucide.createIcons();
+  }
+  function closePwaGuide(id) {
+    document.getElementById(id).style.display = "none";
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>습관파티 저장 점검</title>
+  <link rel="stylesheet" href="operator.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">테스트 데이터만 사용 · <a href="./">운영 도구로</a></p>
+        <h1>습관파티 저장 점검</h1>
+        <p class="muted">운영 API와 주소가 같으면 코드가 실행을 차단해.</p>
+      </div>
+      <button id="runButton" type="button">전체 점검 시작</button>
+    </header>
+    <section id="testStatus" class="status" aria-live="polite">테스트 환경 연결 전</section>
+    <section>
+      <h2>점검 결과</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>단계</th><th>결과</th><th>설명</th></tr></thead>
+          <tbody id="testRows"></tbody>
+        </table>
+      </div>
+    </section>
+    <p class="safety">자동 점검은 테스트02만 사용해. 테스트01로 직접 남긴 기록이나 실제 참가자 기록은 변경하지 않아. 자동 점검용 PIN은 공개된 가상 데이터용이야.</p>
+  </main>
+  <script src="config.js"></script>
+  <script src="safety.js"></script>
+  <script src="test.js"></script>
+</body>
+</html>

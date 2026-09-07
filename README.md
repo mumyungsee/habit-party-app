@@ -54,6 +54,14 @@ node tests/browser-server.cjs
 
 `http://127.0.0.1:8769/runner`에서 검수 실행을 누른다. Google 서비스만 메모리 속 가상 시트로 대체하며, 앱 API 주소는 이 로컬 서버에서만 바뀐다. 운영 API로 쓰기 요청을 보내지 않는다. 로그인·저장·응답 유실·자정·종료·다른 기기 상태·실제 15초 시간 초과를 순차 검증한다. 끝나면 서버를 종료한다. 실제 Google 호스팅의 쓰기 통신이나 실물 iPhone/PWA 설치 검증을 대신하지 않는다.
 
+## 외부 기기 테스트
+
+운영 도구는 `qa/index.html`, 동일 코드의 테스트 앱은 `qa/app/`다. 테스트01은 운영자 수동 점검용(처음 PIN 직접 설정), 테스트02는 자동 연결 점검용이다. 운영 명단과 섞이지 않는다.
+
+참가자 코드 수정 후 `node scripts/build-external-qa.mjs <테스트_API_URL>`로 테스트 화면을 다시 생성한다. root app.js/style.css를 그대로 사용하며 데이터 주소·로그인 키·서비스워커 캐시·PWA 설치 식별자만 테스트용으로 분리한다. 생성 후 `node --test tests/qa-*.test.cjs`와 실제 Google 테스트 서버 점검을 통과한 버전을 배포한다. 운영 앱 파일은 이 생성 단계에서 바꾸지 않는다.
+
+테스트 서버 배포는 `scripts/deploy-external-qa.mjs --publish`가 기존 테스트 프로젝트에만 수행한다. 실행마다 새 버전/배포가 만들어지므로 정상 URL이 있으면 반복 실행하지 않는다. 운영 서버는 대상에 포함되지 않는다. 새 Apps Script 첫 실행의 Google 소유자 권한 승인이 필요할 수 있다.
+
 ## 배포
 GitHub Pages — https://mumyungsee.github.io/habit-party-app/ (레포 mumyungsee/habit-party-app)
 
