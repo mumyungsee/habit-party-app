@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),safety=require('../qa/safety.js');
 const production=readFileSync('data.js','utf8').match(/const API_URL = "([^"]+)"/)[1];
 const endpoint=safety.assertSafeEndpoint(process.argv[2],production);
-const version=execFileSync('git',['rev-parse','--short','HEAD'],{encoding:'utf8'}).trim();
+const version='app-'+execFileSync('git',['hash-object','app.js'],{encoding:'utf8'}).trim().slice(0,8);
 mkdirSync('qa/app',{recursive:true});
 for(const file of ['app.js','data.js','index.html','sw.js','style.css','manifest.json']){
  let text=readFileSync(file,'utf8');

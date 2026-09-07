@@ -2,13 +2,15 @@ const frame=document.getElementById('app'),results=document.getElementById('resu
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 const check=(value,message)=>{if(!value)throw Error(message);};
 let key;
-const control=body=>fetch('/control?case='+key,{method:'POST',body:JSON.stringify(body||{})}).then(r=>r.json());
+function setClock(iso){frame.contentWindow.Date=class extends Date{constructor(...args){super(...(args.length?args:[iso]));}static now(){return new Date(iso).getTime();}};}
+const control=async body=>{const r=await fetch('/control?case='+key,{method:'POST',body:JSON.stringify(body||{})}).then(r=>r.json());if(body?.now)setClock(body.now);return r;};
 const doc=()=>frame.contentDocument;
 async function until(fn,timeout=8000){for(let i=0;i<timeout/50;i++){if(fn())return;await pause(50);}throw Error('화면 대기 시간 초과');}
 async function fresh(options={}){
  localStorage.removeItem('habitparty_me');localStorage.removeItem('habitparty_pin');
  key='case'+Date.now()+Math.random();await control(options);
  const loaded=new Promise(r=>frame.onload=r);frame.src='/?case='+key;await loaded;
+ if(options.now)setClock(options.now);
  await until(()=>doc().querySelectorAll('.pick').length===14||doc().getElementById('pickList').textContent.includes('HP-'));
  // Isolate per-case credentials, including a previous automatic login.
  await pause(150);frame.contentWindow.logout();
@@ -18,7 +20,8 @@ async function pin(name='테스트2',digits='0123'){
  digits.split('').forEach(n=>[...doc().querySelectorAll('.pin-key')].find(b=>b.textContent===n).click());
 }
 const entered=()=>doc().getElementById('s-today').classList.contains('active');
-const done=()=>!!doc().querySelector('.done-tag');
+const done=()=>doc().querySelector('.done-tag')?.textContent==='오늘 인증 완료';
+const pending=()=>doc().querySelector('.done-tag')?.textContent==='저장 중…';
 document.getElementById('run').onclick=async()=>{
  document.getElementById('run').disabled=true;results.textContent='';let passed=0,failed=0;
  async function test(name,fn){try{await fn();passed++;results.textContent+='PASS '+name+'\n';}catch(e){failed++;results.textContent+='FAIL '+name+': '+e.message+'\n';}}
@@ -28,7 +31,7 @@ document.getElementById('run').onclick=async()=>{
  await test('연속 입력·사람 변경을 막아 PIN 요청은 한 번',async()=>{await fresh({fault:'slow-pin'});await pin();frame.contentWindow.pinPress('⌫');frame.contentWindow.pinPress('5');frame.contentWindow.choosePerson('qa3');await until(entered);check(doc().getElementById('meName').textContent==='테스트2','대상 혼선');check((await control()).calls.filter(x=>x==='verifyPin').length===1,'중복 요청');});
  await test('브라우저 저장 차단 상태에서도 로그인·인증',async()=>{await fresh();Object.defineProperty(frame.contentWindow,'localStorage',{get(){throw new DOMException('blocked','SecurityError');}});await pin();await until(entered);doc().querySelector('.check').click();await until(done);});
  await test('PIN 저장 후 응답 유실 자동 확인·입장',async()=>{await fresh({fault:'pin-lost'});await pin('테스트1');await until(entered);check((await control()).calls.filter(x=>x==='setPin').length===1,'PIN 재설정');});
- await test('인증 연타 중복 방지·재접속 유지·취소',async()=>{await fresh();await pin();await until(entered);doc().querySelector('.check').click();doc().querySelector('.check').click();await until(done);check((await control()).data.checkins.length===1,'중복 행');await pause(100);doc().querySelector('.check').click();await until(()=>!done());check((await control()).data.checkins[0].done===false,'취소 미저장');});
+ await test('인증 연타 중복 방지·재접속 유지·취소',async()=>{await fresh();await pin();await until(entered);doc().querySelector('.check').click();doc().querySelector('.check').click();await until(done);check((await control()).data.checkins.length===1,'중복 행');await pause(100);doc().querySelector('.check').click();await until(()=>!done()&&!pending());check((await control()).data.checkins[0].done===false,'취소 미저장');});
  await test('인증 저장 응답 유실 시 재조회·중복 쓰기 없음',async()=>{await fresh();await pin();await until(entered);await control({fault:'check-lost'});doc().querySelector('.check').click();await until(done);check((await control()).calls.filter(x=>x==='checkin').length===1,'쓰기 재시도');});
  await test('자정 전날 완료 뒤 다음날 인증은 2일차 완료',async()=>{await fresh();await pin();await until(entered);doc().querySelector('.check').click();await until(done);await pause(100);await control({now:'2026-09-08T00:00:01+09:00'});doc().querySelector('.check').click();await until(()=>doc().querySelector('.big').textContent.includes('2일째')&&done());check((await control()).data.checkins.filter(x=>x.done).length===2,'다음날 인증 누락');});
  await test('종료 후 시작 안내 대신 종료 표시·과거 인증 유지',async()=>{await fresh({now:'2026-09-23T12:00:00+09:00'});await pin();await until(entered);doc().querySelector('.check').click();await until(done);await pause(100);await control({now:'2026-09-24T00:00:00+09:00'});doc().querySelector('.check').click();await until(()=>doc().querySelector('.big').textContent.includes('끝났어요'));check(doc().querySelectorAll('#grid td.done').length===1,'완료 기록 사라짐');check((await control()).calls.filter(x=>x==='checkin').length===1,'종료 후 쓰기');});
@@ -37,5 +40,7 @@ document.getElementById('run').onclick=async()=>{
  await test('다른 기기에서 완료했어도 이전 화면의 완료 클릭은 취소하지 않는다',async()=>{await fresh();await pin();await until(entered);await control({complete:true});doc().querySelector('.check').click();await until(done);check((await control()).data.checkins[0].done===true,'타 기기 인증 취소');});
  await test('실제 15초 시간 초과 뒤 PIN 버튼 복구·재입장',async()=>{await fresh({fault:'timeout-pin'});await pin();await until(()=>doc().getElementById('pinErr').textContent.includes('HP-TIMEOUT-01'),20000);check(!doc().querySelector('.pin-key').disabled,'입력 잠김');await control({fault:''});'0123'.split('').forEach(n=>[...doc().querySelectorAll('.pin-key')].find(b=>b.textContent===n).click());await until(entered);});
  await test('모바일 390px·데스크톱 1100px에서 본문 가로 넘침 없음',async()=>{await fresh();await pin();await until(entered);for(const width of [390,1100]){frame.style.width=width+'px';await pause(100);check(doc().documentElement.scrollWidth<=width,'화면 넘침 '+width);}frame.style.width='390px';});
+ await test('3초 저장 지연에도 100ms 안에 체크·팡파레, 늦은 중복 팡파레 없음',async()=>{await fresh({fault:'slow-check'});await pin();await until(entered);const original=frame.contentWindow.fireConfetti;let fanfares=0;frame.contentWindow.fireConfetti=(...args)=>{fanfares++;return original(...args);};const before=(await control()).calls.filter(x=>x==='GET').length;const start=performance.now();doc().querySelector('.check').click();const ms=performance.now()-start;check(ms<100,'클릭 처리 지연 '+ms);check(!!doc().querySelector('.mission.done'),'즉시 체크 없음');check(doc().getElementById('confetti').classList.contains('on'),'즉시 팡파레 없음');check(pending()&&!done(),'미확정 저장 표시 없음');await until(done);check((await control()).calls.filter(x=>x==='GET').length===before,'불필요요한 사전 GET');check(fanfares===1,'저장 뒤 팡파레 중복');results.textContent+='  즉시 반응 '+ms.toFixed(1)+'ms / 응답 3000ms\n';});
+ await test('저장 실패는 즉시 체크를 복구하고 재확인은 쓰기를 반복하지 않는다',async()=>{await fresh();await pin();await until(entered);await control({fault:'check-fail'});doc().querySelector('.check').click();check(!!doc().querySelector('.mission.done'),'미리보기 없음');await until(()=>doc().querySelector('.save-notice')?.textContent.includes('다시 확인해주세요'));check(!doc().querySelector('.mission.done'),'실패 체크 유지');await control({fault:''});doc().querySelector('.save-notice button').click();await until(()=>!doc().querySelector('.save-notice'));const state=await control();check(state.data.checkins.length===0,'실패인데 저장됨');check(state.calls.filter(x=>x==='checkin').length===1,'재확인이 쓰기를 반복함');});
  results.textContent+=`RESULT ${passed} passed, ${failed} failed\n`;document.getElementById('run').disabled=false;
 };

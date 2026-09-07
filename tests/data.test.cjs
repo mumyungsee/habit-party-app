@@ -100,3 +100,12 @@ test("PIN 저장 응답 유실 뒤 원래 PIN을 검증하고 쓰기를 반복�
  }});
  await Data.load();assert.equal((await Data.setPin('qa1','0123')).ok,true);assert.equal(writes,1);
 });
+
+test('저장 전에 시작한 늦은 GET이 방금 저장한 인증을 덮어쓰지 않는다',async()=>{
+ let finishGet;
+ const {Data,Store}=loadData(null,{fetch:async(_url,options)=>options.method==='GET'
+   ? new Promise(resolve=>finishGet=()=>resolve({ok:true,json:async()=>({ok:true,challenge:{today:1,totalDays:17},members:[],checkins:[]})}))
+   : {ok:true,json:async()=>({ok:true,day:1})}});
+ const loading=Data.load();await Data.setMyCheck({id:'qa1'},1,true,'');finishGet();await loading;
+ assert.equal(Store.checkins.length,1);assert.equal(Store.checkins[0].done,true);
+});

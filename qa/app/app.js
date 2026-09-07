@@ -9,6 +9,28 @@ let pinMode = "verify"; // "set"(처음) | "verify"(확인)
 let savingMission = false;
 let refreshingState = false;
 let pinSubmitting = false;
+let pendingMission = null;
+let missionIssue = null;
+
+// Preview only: committed server data stays unchanged until the write succeeds.
+function viewedCheck(member, day) {
+  return pendingMission && pendingMission.memberId === member.id && pendingMission.day === day
+    ? pendingMission.done : Data.isChecked(member, day);
+}
+
+async function confirmMissionState() {
+  if (savingMission || !me) return;
+  savingMission = true;
+  try {
+    await Data.reload();
+    missionIssue = null;
+    enter(me.id);
+    showToast('서버의 현재 기록을 확인했어요.');
+  } catch (error) {
+    missionIssue = '아직 저장 결과를 확인하지 못했어요. 연결이 복구되면 다시 확인해주세요.';
+    renderMissions();
+  } finally { savingMission = false; }
+}
 
 function errorMessage(error) {
   const code = error && error.code || "HP-UI-01";
@@ -222,6 +244,7 @@ function enter(id) {
 function logout() {
   if (savingMission || pinSubmitting) return;
   Data.clearMe(); me = null;
+  pendingMission = null; missionIssue = null;
   backToPick();
   go("s-enter");
 }
@@ -240,18 +263,26 @@ function renderMissions(justOnId) {
   const m = Data.missionFor(me);
   const challenge = Data.challenge();
   const day = challenge.today;
-  const isDone = Data.myCheckRaw(me, day) === true;
+  const isDone = viewedCheck(me, day);
+  const pending = pendingMission && pendingMission.memberId === me.id;
   const el = document.createElement("div");
   el.className = "mission" + (isDone ? " done" : "");
   el.innerHTML = `
     <div class="top">
       <div class="check"${challenge.canCheckIn ? ' onclick="toggleMission()"' : ''}>${isDone ? '<i data-lucide="check"></i>' : ""}</div>
       <div class="body">
-        <div class="mtitle">${challenge.canCheckIn ? escapeHtml(m.title) : escapeHtml(closedMessage())}${isDone ? ' <span class="done-tag">오늘 인증 완료</span>' : ''}</div>
+        <div class="mtitle">${challenge.canCheckIn ? escapeHtml(m.title) : escapeHtml(closedMessage())}${pending ? ' <span class="done-tag" role="status">저장 중…</span>' : isDone ? ' <span class="done-tag">오늘 인증 완료</span>' : ''}</div>
         <div class="mteam">${teamIcon(m.team)} ${escapeHtml(m.team)} · ${escapeHtml(m.role)}</div>
       </div>
     </div>`;
   list.appendChild(el);
+  if (missionIssue) {
+    const notice = document.createElement('div');
+    notice.className = 'save-notice';
+    notice.setAttribute('role', 'alert');
+    notice.innerHTML = `${escapeHtml(missionIssue)} <button type="button" onclick="confirmMissionState()">저장 결과 다시 확인</button>`;
+    list.appendChild(notice);
+  }
   renderTodayParty(justOnId);
   refreshIcons();
 }
@@ -263,12 +294,12 @@ function renderTodayParty(justOnId) {
   const mates = teamMates();
   const strip = document.getElementById("partyStrip");
   strip.innerHTML = "";
-  const done = ch.canCheckIn ? mates.filter(p => Data.isChecked(p, ch.today)).length : 0;
+  const done = ch.canCheckIn ? mates.filter(p => viewedCheck(p, ch.today)).length : 0;
   const progress = teamProgress(done, mates.length);
   strip.className = `party-strip cols-${partyColumns(mates.length)} stage-${progress.stage}`;
 
   mates.forEach(p => {
-    const on = Data.isChecked(p, ch.today);
+    const on = viewedCheck(p, ch.today);
     const isMe = p.id === me.id;
     const chip = document.createElement("div");
     chip.className = "pchip" + (on ? " on" : "") + (isMe ? " me" : "") + (on && p.id === justOnId ? " just-on" : "");
@@ -287,7 +318,7 @@ function renderTodayParty(justOnId) {
   msg.className = `party-msg stage-${progress.stage}`;
   if (!ch.canCheckIn) msg.textContent = closedMessage();
   else if (progress.stage === "blaze") msg.innerHTML = "🔥🔥🔥 우리 파티 <b>전원 불꽃!</b>";
-  else if (left === 1 && Data.myCheckRaw(me, ch.today) !== true)
+  else if (left === 1 && !viewedCheck(me, ch.today))
     msg.innerHTML = "<b>나 하나 남았어요!</b> 내가 채우면 전원 불꽃";
   else if (progress.stage === "hot")
     msg.innerHTML = `🔥 <b>빨간 불꽃!</b> ${done}/${mates.length}명 완료`;
@@ -306,49 +337,52 @@ function teamMates() {
 
 async function toggleMission() {
   if (savingMission || !me) return;
-  if (refreshingState) { showToast("최신 기록을 불러오는 중이에요. 잠시 후 눌러주세요."); return; }
+  if (missionIssue) { await confirmMissionState(); return; }
+  const stale = Data.isCalendarStale();
+  if (!Data.challenge().canCheckIn && !stale) { showToast(closedMessage()); return; }
   savingMission = true;
-  const displayedDay = Data.challenge().today;
-  const intendedDone = Data.myCheckRaw(me, displayedDay) !== true;
+  const member = me;
+  let day = Data.challenge().today;
+  const intendedDone = stale || !Data.isChecked(member, day);
+  pendingMission = { memberId: member.id, day, done: intendedDone };
   let writing = false;
-  showToast("최신 기록을 확인하고 저장하는 중이에요…");
   try {
-    await Data.reload();
-    enter(me.id);
-    if (!Data.challenge().canCheckIn) { showToast(closedMessage()); return; }
-    const day = Data.challenge().today;
-    // Preserve the clicked intention if another device already completed the same day.
-    // If the date changed, the click starts today's completion, not yesterday's cancellation.
-    const cur = day === displayedDay ? !intendedDone : false;
-    const mates = teamMates();
-    const before = teamProgress(mates.filter(p => Data.isChecked(p, day)).length, mates.length);
-    writing = true;
-    await Data.setMyCheck(me, day, !cur, "");
-    // 서버 저장 성공 뒤에만 화면과 축하 효과를 갱신한다.
-    enter(me.id);
-    renderMissions(!cur ? me.id : null);
-    showToast(cur ? "오늘 인증을 취소했어요." : "오늘 인증을 저장했어요.");
-
-    if (!cur) {
-      const after = teamProgress(mates.filter(p => Data.isChecked(p, Data.challenge().today)).length, mates.length);
-      if (after.stage === "blaze" && mates.length > 1) {
-        showToast("우리 파티 전원 불꽃! 🎉🎉");
-        fireConfetti("big");
-      } else {
-        if (after.stage !== before.stage && after.stage === "hot")
-          showToast("우리 파티 빨간 불꽃! 🔥");
-        else if (after.stage !== before.stage && after.stage === "warm")
-          showToast("우리 파티에 불꽃이 붙었어요! 🔥");
-        fireConfetti("small");
-      }
+    // Immediate reward; the adjacent saving label distinguishes unconfirmed state.
+    renderMissions(intendedDone ? member.id : null);
+    renderGrid();
+    if (intendedDone) {
+      const mates = teamMates();
+      const allDone = mates.length > 1 && mates.every(p => viewedCheck(p, day));
+      try { fireConfetti(allDone ? 'big' : 'small'); } catch (_) {}
     }
+    // Only refresh before writing when the local calendar date changed since the last GET.
+    if (stale) {
+      await Data.reload();
+      if (!Data.challenge().canCheckIn) throw requestError('HP-CLOSED-01');
+      day = Data.challenge().today;
+      pendingMission.day = day;
+      renderMissions(); renderGrid();
+    }
+    writing = true;
+    await Data.setMyCheck(member, day, intendedDone, '');
+    pendingMission = null;
+    enter(member.id);
+    // No second fanfare on a late network response.
   } catch (e) {
+    pendingMission = null;
     if (writing && ["HP-NETWORK-01", "HP-TIMEOUT-01", "HP-SERVER-01"].includes(e.code)) {
+      missionIssue = '저장 결과를 확인하고 있어요…';
+      renderMissions(); renderGrid();
       try {
-        await Data.reload(); enter(me.id);
-        showToast("서버 기록을 다시 불러왔어요. 오늘 인증 상태를 확인해주세요.");
-      } catch (_) { showToast("저장 결과를 확인하지 못했어요. 연결이 복구되면 새로고침해 기록을 확인해주세요."); }
-    } else showToast(errorMessage(e));
+        await Data.reload();
+        missionIssue = Data.isChecked(member, Data.challenge().today) === intendedDone
+          ? null : '완료 상태를 확인하지 못해 체크를 되돌렸어요.';
+      } catch (_) { missionIssue = '저장 결과를 확인하지 못했어요. 연결이 복구되면 다시 확인해주세요.'; }
+    } else {
+      missionIssue = errorMessage(e);
+      if (e.code === 'HP-CLOSED-01') { try { await Data.reload(); } catch (_) {} }
+    }
+    enter(member.id);
   } finally {
     savingMission = false;
   }
@@ -366,7 +400,7 @@ function renderGrid() {
   // 날짜별 체크율 단계. 절반부터 불꽃, 2/3부터 빨간 불꽃, 전원은 큰 불꽃.
   const progressByDay = {};
   for (let d = 1; d <= visibleToday; d++) {
-    const done = mates.filter(p => Data.isChecked(p, d)).length;
+    const done = mates.filter(p => viewedCheck(p, d)).length;
     progressByDay[d] = teamProgress(done, mates.length);
   }
   mates.forEach(p => {
@@ -374,7 +408,7 @@ function renderGrid() {
     for (let d = 1; d <= ch.totalDays; d++) {
       let cls = "miss";
       let on = false;
-      if (d <= visibleToday) { on = Data.isChecked(p, d); cls = on ? "done" : "miss"; }
+      if (d <= visibleToday) { on = viewedCheck(p, d); cls = on ? "done" : "miss"; }
       if (d === visibleToday) cls += " today";
       const progress = progressByDay[d] || teamProgress(0, mates.length);
       const fire = on && progress.flame;

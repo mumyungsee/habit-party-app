@@ -49,7 +49,14 @@ const Store = {
   members: [],     // {id,name,team,role,mission,emoji,hasPin}
   checkins: [],    // {memberId,day,done,memo}
   loaded: false,
+  revision: 0,
+  loadSerial: 0,
+  calendarKey: null,
 };
+
+function calendarKey() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
 
 // 팀별 기본 이모지(시트 emoji 없을 때 fallback용 — 지금은 시트에 있음)
 const TEAM_EMOJI = {
@@ -73,14 +80,19 @@ async function _post(payload) {
 const Data = {
   // ── 로딩 ──
   async load() {
+    const revision = Store.revision;
+    const serial = ++Store.loadSerial;
     const d = await _get();
     if (!d.ok || !d.challenge || !Array.isArray(d.members) || !Array.isArray(d.checkins)) throw requestError("HP-SERVER-01");
+    if (revision !== Store.revision || serial !== Store.loadSerial) return;
     Store.challenge = d.challenge;
     Store.members = d.members;
     Store.checkins = d.checkins;
     Store.loaded = true;
+    Store.calendarKey = calendarKey();
   },
   async reload() { await this.load(); },
+  isCalendarStale() { return Store.calendarKey !== calendarKey(); },
 
   challenge() { return Store.challenge; },
   teams() {
@@ -162,6 +174,7 @@ const Data = {
     if (!Number.isInteger(savedDay) || savedDay < 1 || savedDay > Store.challenge.totalDays) throw requestError("HP-SERVER-01");
     let c = Store.checkins.find(x => x.memberId === member.id && x.day === savedDay);
     Store.challenge.today = savedDay;
+    Store.revision += 1;
     if (c) { c.done = val; c.memo = memo || c.memo || ""; }
     else { Store.checkins.push({ memberId: member.id, day: savedDay, done: val, memo: memo || "" }); }
     return r;

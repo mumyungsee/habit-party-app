@@ -18,9 +18,11 @@ http.createServer((req,res)=>{
    const fault=c.fault;
    if(fault==='get-fail'&&req.method==='GET'){res.writeHead(503);return res.end('{}');}
    if(fault==='pin-fail'&&body.action==='verifyPin'){res.writeHead(503);return res.end('{}');}
+   if(fault==='check-fail'&&body.action==='checkin'){c.fault='get-fail';res.writeHead(503);return res.end('{}');}
    const out=req.method==='GET'?c.backend.get():c.backend.post(body);
    if((fault==='pin-lost'&&body.action==='setPin')||(fault==='check-lost'&&body.action==='checkin')){c.fault='';res.writeHead(503);return res.end('{}');}
    const send=()=>res.end(JSON.stringify(out));
+   if(fault==='slow-check'&&body.action==='checkin')return setTimeout(send,3000);
    if(fault==='timeout-pin'&&body.action==='verifyPin')return setTimeout(send,20000);
    if(fault==='slow-pin'&&body.action==='verifyPin')return setTimeout(send,500);
    send();

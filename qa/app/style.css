@@ -313,3 +313,5 @@ th, td { text-align: center; }
 .pwa-guide-body { font-size: 14px; color: var(--text2); margin-top: 12px; line-height: 1.7; }
 .pwa-guide-body b { color: var(--text); }
 .pwa-guide-body [data-lucide] { font-size: 15px; vertical-align: -.15em; }
+.save-notice { margin: 12px 0; padding: 12px; border-radius: 12px; background: #fff1dc; color: #704414; font-size: 14px; line-height: 1.6; }
+.save-notice button { display: block; margin-top: 8px; padding: 7px 10px; border: 1px solid #c58b43; border-radius: 8px; background: white; color: inherit; cursor: pointer; }
