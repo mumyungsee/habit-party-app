@@ -123,26 +123,15 @@
   </div>
 </div>
 
-<script src="data.js?v=20260907-4"></script>
-<script src="app.js?v=20260907-4"></script>
+<script src="data.js?v=20260907-5"></script>
+<script src="app.js?v=20260907-5"></script>
 <script>
   // ── 서비스워커 등록 (PWA 필수) + 새 버전 자동 반영 ──
   // 코드를 새로 배포하면, 앱을 열어둔 사람도 캐시 버전을 손댈 필요 없이 자동으로 최신을 받음.
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("sw.js").then((reg) => {
-        // 이미 대기 중인 새 SW가 있으면 즉시 켜라고 요청
-        if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
-        // 새 SW가 감지되면(=새 코드 배포) 설치 완료되는 대로 켜기
-        reg.addEventListener("updatefound", () => {
-          const sw = reg.installing;
-          if (!sw) return;
-          sw.addEventListener("statechange", () => {
-            if (sw.state === "installed" && navigator.serviceWorker.controller) {
-              sw.postMessage("SKIP_WAITING");
-            }
-          });
-        });
+        // Do not force activation: other open tabs may still be saving with older code.
         // 페이지 복귀 시(카톡→앱 재진입 등) 업데이트 확인
         document.addEventListener("visibilitychange", () => {
           if (document.visibilityState === "visible") reg.update().catch(()=>{});
@@ -150,11 +139,18 @@
       }).catch(()=>{});
 
       // 새 SW가 제어권을 잡으면 페이지를 한 번만 새로고침 → 최신 화면
-      let refreshed = false;
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        if (refreshed) return;
+      const hadController = !!navigator.serviceWorker.controller;
+      let refreshed = false, updatePending = false;
+      function applyUpdateWhenSafe() {
+        if (!updatePending || refreshed || !window.canApplyAppUpdate || !window.canApplyAppUpdate()) return;
         refreshed = true;
         window.location.reload();
+      }
+      window.addEventListener("habitparty:idle", applyUpdateWhenSafe);
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!hadController) return; // First installation is not an app update.
+        updatePending = true;
+        applyUpdateWhenSafe();
       });
     });
   }

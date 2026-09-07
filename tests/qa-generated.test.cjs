@@ -10,7 +10,8 @@ test('테스트 데이터·로그인·캐시·설치는 운영과 분리된다',
  assert.equal(built.includes(prod),false);
  assert.match(built,/habitparty_qa_me/);assert.match(built,/habitparty_qa_pin/);
  assert.match(built,/d.environment !== "habit-party-qa-2026-09-07"/);
- assert.match(read('qa/app/sw.js'),/startsWith\("habitparty-qa-"\)/);
+ // Actual cache deletion boundaries are exercised by safety-boundaries.test.cjs.
+ assert.match(read('qa/app/sw.js'),/const CACHE = "habitparty-qa-v5"/);
  const manifest=JSON.parse(read('qa/app/manifest.json'));assert.equal(manifest.scope,'./');assert.equal(manifest.start_url,'./');
 });
 test('운영 현황은 GET만 사용하고 자동 점검 계정은 qa02로 고정한다',()=>{

@@ -111,7 +111,7 @@ function doPost(e) {
 
     if (action === "setPin")   return _json(_setPin(body.memberId, body.pin));
     if (action === "verifyPin") return _json(_verifyPin(body.memberId, body.pin));
-    if (action === "checkin")  return _json(_checkin(body.memberId, body.pin, body.done, body.memo));
+    if (action === "checkin")  return _json(_checkin(body.memberId, body.pin, body.done, body.memo, body.expectedDay));
     return _json({ ok: false, error: "unknown action" });
   } catch (err) {
     return _json({ ok: false, error: "bad request" });
@@ -169,7 +169,7 @@ function _memberName(memberId) {
   return "";
 }
 
-function _checkin(memberId, pin, done, memo) {
+function _checkin(memberId, pin, done, memo, expectedDay) {
   if (typeof done !== "boolean") return { ok: false, error: "invalid done" };
   const cleanMemo = String(memo || "");
   if (cleanMemo.length > 200) return { ok: false, error: "memo too long" };
@@ -178,6 +178,11 @@ function _checkin(memberId, pin, done, memo) {
     const challenge = _challengeState();
     if (!challenge.canCheckIn) return { ok: false, error: "checkin closed" };
     const day = challenge.today;
+    // Old clients may complete today, but must refresh before cancelling.
+    // Validate under the lock: a request can cross midnight while waiting.
+    if (expectedDay === undefined && done === false) return { ok: false, error: "client update required" };
+    if (expectedDay !== undefined && (!Number.isInteger(expectedDay) || expectedDay !== day))
+      return { ok: false, error: "day changed", day };
     const name = _memberName(memberId);
     const sh = _sheet("checkins");
     const data = sh.getDataRange().getValues();

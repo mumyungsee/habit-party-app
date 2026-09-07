@@ -20,21 +20,18 @@ const ASSETS = [
 self.addEventListener("install", (e) => {
   // 새 코드 껍데기를 미리 받아둠. 오프라인 폴백용.
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).catch(() => {}));
-  self.skipWaiting(); // 기다리지 말고 바로 새 SW로 교체 대기
+  // Wait for old controlled tabs to close. They may still have unsafe reload handlers.
 });
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k.startsWith("habitparty-qa-") && k !== CACHE).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => /^habitparty-qa-v\d+$/.test(k) && k !== CACHE).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim()) // 열려있는 탭도 새 SW가 즉시 제어
   );
 });
 
-// 앱(페이지)이 "지금 기다리는 새 SW 있으면 바로 켜"라고 요청하면 응답
-self.addEventListener("message", (e) => {
-  if (e.data === "SKIP_WAITING") self.skipWaiting();
-});
+// Deliberately ignore legacy SKIP_WAITING messages: never interrupt another tab's write.
 
 function isHTML(req) {
   return req.mode === "navigate" || req.headers.get("accept")?.includes("text/html");
@@ -46,12 +43,14 @@ self.addEventListener("fetch", (e) => {
 
   // 구글시트 API(데이터)는 항상 네트워크 — 캐시 안 함
   if (req.method !== "GET" || url.origin !== self.location.origin || !url.href.startsWith(self.registration.scope)) return;
+  // A root service worker must not handle the separately scoped QA application.
+  if (url.pathname.slice(new URL(self.registration.scope).pathname.length).startsWith("qa/")) return;
 
   // ★ HTML(페이지 뼈대)은 항상 네트워크에서 새로. 옛 화면이 박히는 걸 원천 차단.
   //   오프라인일 때만 캐시된 index.html로 폴백.
   if (isHTML(req)) {
     e.respondWith(
-      fetch(req).catch(() => caches.match("./index.html").then((r) => r || caches.match("./")))
+      fetch(req).catch(() => caches.open(CACHE).then(async c => (await c.match("./index.html")) || c.match("./")))
     );
     return;
   }
@@ -66,6 +65,6 @@ self.addEventListener("fetch", (e) => {
         }
         return res;
       })
-      .catch(() => caches.match(req))
+      .catch(() => caches.open(CACHE).then(c => c.match(req)))
   );
 });

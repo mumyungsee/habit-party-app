@@ -16,6 +16,7 @@ http.createServer((req,res)=>{
    }
    c.calls.push(req.method==='GET'?'GET':body.action);
    const fault=c.fault;
+   if(fault==='midnight-check'&&body.action==='checkin'){c.backend.state.now='2026-09-08T00:00:01+09:00';c.fault='';}
    if(fault==='get-fail'&&req.method==='GET'){res.writeHead(503);return res.end('{}');}
    if(fault==='pin-fail'&&body.action==='verifyPin'){res.writeHead(503);return res.end('{}');}
    if(fault==='check-fail'&&body.action==='checkin'){c.fault='get-fail';res.writeHead(503);return res.end('{}');}

@@ -7,7 +7,7 @@ test('실제 서버 코드: 새 PIN → 확인 → 인증 → 재조회 → 중�
  assert.equal(b.post({action:'setPin',memberId:'qa1',pin:'0123'}).ok,true);
  assert.equal(b.post({action:'verifyPin',memberId:'qa1',pin:'0123'}).ok,true);
  assert.equal(b.post({action:'verifyPin',memberId:'qa1',pin:'123'}).ok,false);
- const input={action:'checkin',memberId:'qa1',pin:'0123',done:true};
+ const input={action:'checkin',memberId:'qa1',pin:'0123',done:true,expectedDay:1};
  assert.equal(b.post(input).ok,true); assert.equal(b.post(input).ok,true);
  assert.equal(b.get().checkins.length,1); assert.equal(b.get().checkins[0].done,true);
  assert.equal(b.post({...input,pin:'9999',done:false}).ok,false);

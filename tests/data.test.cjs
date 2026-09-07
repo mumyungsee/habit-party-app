@@ -109,3 +109,9 @@ test('저장 전에 시작한 늦은 GET이 방금 저장한 인증을 덮어쓰
  const loading=Data.load();await Data.setMyCheck({id:'qa1'},1,true,'');finishGet();await loading;
  assert.equal(Store.checkins.length,1);assert.equal(Store.checkins[0].done,true);
 });
+
+test('완료·취소 모두 표시한 일차를 서버에 보내고 날짜 거절을 구분한다',async()=>{
+ let payload;
+ const {Data}=loadData(null,{fetch:async(_u,o)=>{payload=JSON.parse(o.body);return {ok:true,json:async()=>({ok:false,error:'day changed'})};}});
+ for(const done of [true,false]){await assert.rejects(()=>Data.setMyCheck({id:'qa2'},1,done,''),e=>e.code==='HP-DAY-01');assert.equal(payload.expectedDay,1);assert.equal(payload.done,done);}
+});

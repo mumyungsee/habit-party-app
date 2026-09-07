@@ -6,7 +6,7 @@
   const rows = document.getElementById("testRows");
   const testPin = "2468";
 
-  async function request(url, payload) {
+  async function request(url, payload, expectedError) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15000);
     try {
@@ -19,6 +19,10 @@
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
       if (result.environment !== 'habit-party-qa-2026-09-07') throw new Error('테스트 환경 확인 실패. 저장 점검을 중단했어.');
+      if (expectedError) {
+        if (result.ok !== false || result.error !== expectedError) throw new Error('잘못된 인증 요청을 안전하게 차단하지 못했어.');
+        return result;
+      }
       if (!result.ok) throw new Error(result.error || "서버 거절");
       return result;
     } finally {
@@ -59,7 +63,7 @@
       if (!verified.ok) throw new Error("테스트 PIN 확인 실패");
       addResult("3. 테스트 PIN 확인", true, "POST 연결 정상");
 
-      await request(api, { action: "checkin", memberId: member.id, pin: testPin, done: true, memo: "QA 자동 점검" });
+      await request(api, { action: "checkin", memberId: member.id, pin: testPin, done: true, memo: "QA 자동 점검", expectedDay: state.challenge.today });
       addResult("4. 테스트 인증 저장", true, "별도 테스트 시트의 자동 점검 계정에만 저장");
 
       state = await request(`${api}?_=${Date.now()}`);
@@ -67,10 +71,16 @@
       if (!saved) throw new Error("새로 조회했지만 테스트 인증이 없어.");
       addResult("5. 저장 재조회", true, `${state.challenge.today}일차 저장 확인`);
 
-      await request(api, { action: "checkin", memberId: member.id, pin: testPin, done: false, memo: "QA 자동 점검 완료" });
+      await request(api, { action: "checkin", memberId: member.id, pin: testPin, done: false, expectedDay: state.challenge.today + 1 }, 'day changed');
+      await request(api, { action: "checkin", memberId: member.id, pin: testPin, done: false }, 'client update required');
+      state = await request(`${api}?_=${Date.now()}`);
+      if (!state.checkins.some(item => item.memberId === member.id && item.day === state.challenge.today && item.done)) throw new Error('거절된 요청이 인증을 변경했어.');
+      addResult("6. 잘못된 취소 차단", true, "다른 일차·일차 없는 취소 거절, 완료 기록 유지");
+
+      await request(api, { action: "checkin", memberId: member.id, pin: testPin, done: false, memo: "QA 자동 점검 완료", expectedDay: state.challenge.today });
       state = await request(`${api}?_=${Date.now()}`);
       if (state.checkins.some(item => item.memberId === member.id && item.day === state.challenge.today && item.done)) throw new Error("자동 점검 계정의 인증 취소 실패");
-      addResult("6. 자동 점검 인증 취소", true, "테스트02만 미완료로 복귀 · 테스트01 기록 유지");
+      addResult("7. 자동 점검 인증 취소", true, "테스트02만 미완료로 복귀 · 테스트01 기록 유지");
 
       status.className = "status ok";
       status.textContent = "전체 점검 통과 · 운영 참가자 데이터는 사용하지 않았어.";

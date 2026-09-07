@@ -168,8 +168,8 @@ const Data = {
   async setMyCheck(member, day, val, memo) {
     // 서버 저장이 확인된 뒤에만 화면 캐시를 바꾼다.
     // 네트워크/PIN 오류인데도 인증 성공처럼 보이는 일을 막기 위함.
-    const r = await _post({ action: "checkin", memberId: member.id, pin: this.savedPin(), done: val, memo: memo || "" });
-    if (!r.ok) throw requestError(r.error === "unauthorized" ? "HP-PIN-01" : r.error === "checkin closed" ? "HP-CLOSED-01" : "HP-SERVER-01");
+    const r = await _post({ action: "checkin", memberId: member.id, pin: this.savedPin(), done: val, memo: memo || "", expectedDay: day });
+    if (!r.ok) throw requestError(r.error === "unauthorized" ? "HP-PIN-01" : r.error === "checkin closed" ? "HP-CLOSED-01" : r.error === "day changed" ? "HP-DAY-01" : r.error === "client update required" ? "HP-UPDATE-01" : "HP-SERVER-01");
     const savedDay = Number(r.day);
     if (!Number.isInteger(savedDay) || savedDay < 1 || savedDay > Store.challenge.totalDays) throw requestError("HP-SERVER-01");
     let c = Store.checkins.find(x => x.memberId === member.id && x.day === savedDay);

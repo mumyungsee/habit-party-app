@@ -8,7 +8,7 @@
 //  체크인/핀 변경 시 서버로 보내고, 로컬 캐시도 즉시 갱신(낙관적 업데이트).
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyeK5t-0mFA-wFBKfHdTUzl3XvsJIXZ06xmzxSQLvxZxZ-B13dnstHrWhrV7Ot4N8MaMw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwsf2O6Lo_fXvgjU_M0rVCArHmjdj4doJ9ciiSeWqmHvIg-Y7Y_QFNeRSX9zoRGcoP07w/exec";
 
 const LS_ME = "habitparty_qa_me";
 const LS_PIN = "habitparty_qa_pin";
@@ -169,8 +169,8 @@ const Data = {
   async setMyCheck(member, day, val, memo) {
     // 서버 저장이 확인된 뒤에만 화면 캐시를 바꾼다.
     // 네트워크/PIN 오류인데도 인증 성공처럼 보이는 일을 막기 위함.
-    const r = await _post({ action: "checkin", memberId: member.id, pin: this.savedPin(), done: val, memo: memo || "" });
-    if (!r.ok) throw requestError(r.error === "unauthorized" ? "HP-PIN-01" : r.error === "checkin closed" ? "HP-CLOSED-01" : "HP-SERVER-01");
+    const r = await _post({ action: "checkin", memberId: member.id, pin: this.savedPin(), done: val, memo: memo || "", expectedDay: day });
+    if (!r.ok) throw requestError(r.error === "unauthorized" ? "HP-PIN-01" : r.error === "checkin closed" ? "HP-CLOSED-01" : r.error === "day changed" ? "HP-DAY-01" : r.error === "client update required" ? "HP-UPDATE-01" : "HP-SERVER-01");
     const savedDay = Number(r.day);
     if (!Number.isInteger(savedDay) || savedDay < 1 || savedDay > Store.challenge.totalDays) throw requestError("HP-SERVER-01");
     let c = Store.checkins.find(x => x.memberId === member.id && x.day === savedDay);

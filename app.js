@@ -12,6 +12,10 @@ let pinSubmitting = false;
 let pendingMission = null;
 let missionIssue = null;
 
+// An unresolved write must be confirmed before a service-worker reload.
+function canApplyAppUpdate() { return !savingMission && !pinSubmitting && !missionIssue && pinBuffer.length === 0; }
+function notifyAppIdle() { window.dispatchEvent(new Event('habitparty:idle')); }
+
 // Preview only: committed server data stays unchanged until the write succeeds.
 function viewedCheck(member, day) {
   return pendingMission && pendingMission.memberId === member.id && pendingMission.day === day
@@ -29,7 +33,7 @@ async function confirmMissionState() {
   } catch (error) {
     missionIssue = '아직 저장 결과를 확인하지 못했어요. 연결이 복구되면 다시 확인해주세요.';
     renderMissions();
-  } finally { savingMission = false; }
+  } finally { savingMission = false; notifyAppIdle(); }
 }
 
 function errorMessage(error) {
@@ -40,6 +44,8 @@ function errorMessage(error) {
     "HP-SERVER-01": "서버 응답을 확인하지 못했어요. 잠시 후 다시 시도해주세요.",
     "HP-PIN-01": "로그인을 다시 확인해야 해요. ‘바꾸기’를 눌러 다시 입장해주세요.",
     "HP-CLOSED-01": "현재는 실행 인증 기간이 아니에요.",
+    "HP-DAY-01": "날짜가 바뀌어 요청을 저장하지 않았어요. 오늘 기록을 확인하고 다시 눌러주세요.",
+    "HP-UPDATE-01": "새로고침한 뒤 오늘 기록을 확인해주세요.",
     "HP-UI-01": "화면을 표시하지 못했어요. 새로고침 후에도 같으면 운영자에게 알려주세요.",
   };
   return `${messages[code] || messages["HP-UI-01"]} (${code})`;
@@ -159,8 +165,10 @@ function choosePerson(id) {
 
 function backToPick() {
   if (pinSubmitting) return;
+  pinBuffer = "";
   document.getElementById("step-pin").style.display = "none";
   document.getElementById("step-pick").style.display = "block";
+  notifyAppIdle();
 }
 
 function renderPinPad() {
@@ -189,7 +197,7 @@ function renderPinDots() {
 
 function pinPress(k) {
   if (pinSubmitting) return;
-  if (k === "⌫") { pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); return; }
+  if (k === "⌫") { pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); notifyAppIdle(); return; }
   if (pinBuffer.length >= 4) return;
   pinBuffer += k;
   renderPinDots();
@@ -207,7 +215,7 @@ async function submitPin() {
   promptEl.textContent = "확인 중...";
   try {
     const ok = pinMode === "set" ? (await Data.setPin(targetId, entered)).ok : await Data.verifyPin(targetId, entered);
-    if (ok) { enter(targetId); }
+    if (ok) { pinBuffer = ""; enter(targetId); }
     else {
         errEl.textContent = "비밀번호가 달라요. 다시 입력해주세요.";
         pinBuffer = ""; renderPinDots();
@@ -221,6 +229,7 @@ async function submitPin() {
     pinMode = Data.hasPin(Data.member(targetId)) ? "verify" : "set";
     promptEl.textContent = pinMode === "set" ? "비밀번호 4자리를 정해요" : "비밀번호 4자리를 입력하세요";
     document.querySelectorAll("#step-pin button").forEach(b => b.disabled = false);
+    notifyAppIdle();
   }
 }
 
@@ -380,11 +389,12 @@ async function toggleMission() {
       } catch (_) { missionIssue = '저장 결과를 확인하지 못했어요. 연결이 복구되면 다시 확인해주세요.'; }
     } else {
       missionIssue = errorMessage(e);
-      if (e.code === 'HP-CLOSED-01') { try { await Data.reload(); } catch (_) {} }
+      if (e.code === 'HP-CLOSED-01' || e.code === 'HP-DAY-01') { try { await Data.reload(); } catch (_) {} }
     }
     enter(member.id);
   } finally {
     savingMission = false;
+    notifyAppIdle();
   }
 }
 
