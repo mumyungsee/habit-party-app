@@ -13,6 +13,36 @@ const API_URL = "https://script.google.com/macros/s/AKfycbz87IJ4vn_IMX5PWEJooPf4
 const LS_ME = "habitparty_me";
 const LS_PIN = "habitparty_pin";
 
+// Storage restrictions must not prevent participation during the current visit.
+const sessionValues = new Map();
+let storageAvailable = true;
+function savedValue(key) {
+  if (sessionValues.has(key)) return sessionValues.get(key);
+  try { return storageAvailable ? localStorage.getItem(key) : null; }
+  catch (_) { storageAvailable = false; return null; }
+}
+function saveValue(key, value) {
+  sessionValues.set(key, value);
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch (_) { storageAvailable = false; }
+}
+function requestError(code) { const error = new Error(code); error.code = code; return error; }
+async function requestJson(options) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(API_URL, { ...options, cache: "no-store", signal: controller.signal });
+    if (!response.ok) throw requestError("HP-SERVER-01");
+    try { return await response.json(); }
+    catch (error) { if (error.name === "AbortError") throw error; throw requestError("HP-SERVER-01"); }
+  } catch (error) {
+    if (typeof error.code === "string" && error.code.startsWith("HP-")) throw error;
+    throw requestError(error.name === "AbortError" ? "HP-TIMEOUT-01" : "HP-NETWORK-01");
+  } finally { clearTimeout(timer); }
+}
+
 // 서버에서 받아온 현재 상태 캐시
 const Store = {
   challenge: { startDate: "2026-09-07", totalDays: 17, today: 1, canCheckIn: false },
@@ -28,25 +58,23 @@ const TEAM_EMOJI = {
 };
 
 async function _get() {
-  const res = await fetch(API_URL, { method: "GET" });
-  return await res.json();
+  return requestJson({ method: "GET" });
 }
 
 // Apps Script 웹앱은 CORS preflight를 막으므로 text/plain 으로 단순요청 전송
 async function _post(payload) {
-  const res = await fetch(API_URL, {
+  return requestJson({
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(payload),
   });
-  return await res.json();
 }
 
 const Data = {
   // ── 로딩 ──
   async load() {
     const d = await _get();
-    if (!d.ok) throw new Error("load failed");
+    if (!d.ok || !d.challenge || !Array.isArray(d.members) || !Array.isArray(d.checkins)) throw requestError("HP-SERVER-01");
     Store.challenge = d.challenge;
     Store.members = d.members;
     Store.checkins = d.checkins;
@@ -79,29 +107,41 @@ const Data = {
   },
 
   // ── 핀 ──
-  hasPin(member) { return !!member.hasPin; },
+  hasPin(member) { return !!member?.hasPin; },
   async setPin(id, pin) {
-    const r = await _post({ action: "setPin", memberId: id, pin });
+    let r;
+    try { r = await _post({ action: "setPin", memberId: id, pin }); }
+    catch (error) {
+      // A write may have completed despite a missing response. Verify; never overwrite the PIN.
+      await this.reload();
+      if (this.member(id)?.hasPin && await this.verifyPin(id, pin)) return { ok: true };
+      throw error;
+    }
+    if (!r.ok && r.error === "이미 핀이 설정됨") {
+      await this.reload();
+      return { ok: await this.verifyPin(id, pin) };
+    }
+    if (!r.ok) throw requestError("HP-SERVER-01");
     if (r.ok) {
       const m = this.member(id);
       if (m) m.hasPin = true;
-      localStorage.setItem(LS_PIN, pin);
+      saveValue(LS_PIN, pin);
     }
     return r;
   },
   async verifyPin(id, pin) {
     const r = await _post({ action: "verifyPin", memberId: id, pin });
-    if (r.ok) localStorage.setItem(LS_PIN, pin);
+    if (r.ok) saveValue(LS_PIN, pin);
     return r.ok;
   },
 
   // ── 로그인 상태(이 기기) ──
-  savedMe() { return localStorage.getItem(LS_ME); },
-  savedPin() { return localStorage.getItem(LS_PIN); },
-  setMe(id) { localStorage.setItem(LS_ME, id); },
+  savedMe() { return savedValue(LS_ME); },
+  savedPin() { return savedValue(LS_PIN); },
+  setMe(id) { saveValue(LS_ME, id); },
   clearMe() {
-    localStorage.removeItem(LS_ME);
-    localStorage.removeItem(LS_PIN);
+    saveValue(LS_ME, null);
+    saveValue(LS_PIN, null);
   },
 
   // ── 체크인 ──
@@ -116,11 +156,14 @@ const Data = {
   async setMyCheck(member, day, val, memo) {
     // 서버 저장이 확인된 뒤에만 화면 캐시를 바꾼다.
     // 네트워크/PIN 오류인데도 인증 성공처럼 보이는 일을 막기 위함.
-    let c = Store.checkins.find(x => x.memberId === member.id && x.day === day);
     const r = await _post({ action: "checkin", memberId: member.id, pin: this.savedPin(), done: val, memo: memo || "" });
-    if (!r.ok) throw new Error(r.error || "checkin failed");
+    if (!r.ok) throw requestError(r.error === "unauthorized" ? "HP-PIN-01" : r.error === "checkin closed" ? "HP-CLOSED-01" : "HP-SERVER-01");
+    const savedDay = Number(r.day);
+    if (!Number.isInteger(savedDay) || savedDay < 1 || savedDay > Store.challenge.totalDays) throw requestError("HP-SERVER-01");
+    let c = Store.checkins.find(x => x.memberId === member.id && x.day === savedDay);
+    Store.challenge.today = savedDay;
     if (c) { c.done = val; c.memo = memo || c.memo || ""; }
-    else { Store.checkins.push({ memberId: member.id, day, done: val, memo: memo || "" }); }
+    else { Store.checkins.push({ memberId: member.id, day: savedDay, done: val, memo: memo || "" }); }
     return r;
   },
 

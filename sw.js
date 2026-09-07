@@ -5,7 +5,7 @@
 //   - JS/CSS 등 나머지는 "네트워크 우선" — 온라인이면 언제나 최신, 오프라인일 때만 캐시.
 //   - 그래서 코드 바꿔도 아래 CACHE 숫자를 손으로 안 올려도 사용자는 최신을 봄.
 //     (버전은 그냥 "오래된 캐시 청소" 용도. 대청소가 필요할 때만 올리면 됨.)
-const CACHE = "habitparty-v3";
+const CACHE = "habitparty-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -26,7 +26,7 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k.startsWith("habitparty-") && k !== CACHE).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim()) // 열려있는 탭도 새 SW가 즉시 제어
   );
 });
@@ -45,7 +45,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
 
   // 구글시트 API(데이터)는 항상 네트워크 — 캐시 안 함
-  if (url.hostname.includes("script.google.com")) return;
+  if (req.method !== "GET" || url.origin !== self.location.origin || !url.href.startsWith(self.registration.scope)) return;
 
   // ★ HTML(페이지 뼈대)은 항상 네트워크에서 새로. 옛 화면이 박히는 걸 원천 차단.
   //   오프라인일 때만 캐시된 index.html로 폴백.

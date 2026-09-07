@@ -46,6 +46,14 @@ python -m http.server 8123
 node --test tests/*.test.cjs
 ```
 
+실제 HTML/JS와 서버 코드로 가상 참가자 전체 흐름 검수:
+
+```
+node tests/browser-server.cjs
+```
+
+`http://127.0.0.1:8769/runner`에서 검수 실행을 누른다. Google 서비스만 메모리 속 가상 시트로 대체하며, 앱 API 주소는 이 로컬 서버에서만 바뀐다. 운영 API로 쓰기 요청을 보내지 않는다. 로그인·저장·응답 유실·자정·종료·다른 기기 상태·실제 15초 시간 초과를 순차 검증한다. 끝나면 서버를 종료한다. 실제 Google 호스팅의 쓰기 통신이나 실물 iPhone/PWA 설치 검증을 대신하지 않는다.
+
 ## 배포
 GitHub Pages — https://mumyungsee.github.io/habit-party-app/ (레포 mumyungsee/habit-party-app)
 

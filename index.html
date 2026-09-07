@@ -123,8 +123,8 @@
   </div>
 </div>
 
-<script src="data.js?v=20260906-2"></script>
-<script src="app.js?v=20260906-3"></script>
+<script src="data.js?v=20260907-2"></script>
+<script src="app.js?v=20260907-3"></script>
 <script>
   // ── 서비스워커 등록 (PWA 필수) + 새 버전 자동 반영 ──
   // 코드를 새로 배포하면, 앱을 열어둔 사람도 캐시 버전을 손댈 필요 없이 자동으로 최신을 받음.
@@ -165,7 +165,8 @@
   const isRealSafari = isIOS && /safari/i.test(navigator.userAgent) && !/crios|fxios|kakaotalk|naver|line/i.test(navigator.userAgent);
   const btn = document.getElementById("pwaInstall");
   // 한 번 설치했으면 기록 — 브라우저로 다시 열어도 버튼 안 뜨게
-  const alreadyInstalled = isStandalone || localStorage.getItem("pwaInstalled") === "1";
+  let alreadyInstalled = isStandalone;
+  try { alreadyInstalled ||= localStorage.getItem("pwaInstalled") === "1"; } catch (_) {}
 
   // 설치는 '보너스'. 설치 가능 + 아직 설치 안 한 환경에서만 조용히 버튼 노출.
   function showBtn() { if (!alreadyInstalled) btn.style.display = "inline-flex"; }
@@ -193,7 +194,7 @@
 
   // 설치 완료 → 기록 남기고 버튼 영구 숨김
   function markInstalled() {
-    localStorage.setItem("pwaInstalled", "1");
+    try { localStorage.setItem("pwaInstalled", "1"); } catch (_) {}
     btn.style.display = "none";
   }
   window.addEventListener("appinstalled", markInstalled);

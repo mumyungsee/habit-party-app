@@ -8,6 +8,24 @@ let pinTarget = null;// 핀 입력 대상 멤버
 let pinMode = "verify"; // "set"(처음) | "verify"(확인)
 let savingMission = false;
 let refreshingState = false;
+let pinSubmitting = false;
+
+function errorMessage(error) {
+  const code = error && error.code || "HP-UI-01";
+  const messages = {
+    "HP-NETWORK-01": "연결을 확인하지 못했어요. 잠시 후 다시 시도해주세요.",
+    "HP-TIMEOUT-01": "응답이 오래 걸려 중단했어요. 다시 시도해주세요.",
+    "HP-SERVER-01": "서버 응답을 확인하지 못했어요. 잠시 후 다시 시도해주세요.",
+    "HP-PIN-01": "로그인을 다시 확인해야 해요. ‘바꾸기’를 눌러 다시 입장해주세요.",
+    "HP-CLOSED-01": "현재는 실행 인증 기간이 아니에요.",
+    "HP-UI-01": "화면을 표시하지 못했어요. 새로고침 후에도 같으면 운영자에게 알려주세요.",
+  };
+  return `${messages[code] || messages["HP-UI-01"]} (${code})`;
+}
+function closedMessage() {
+  return Data.challenge().today >= Data.challenge().totalDays
+    ? "실행 인증 기간이 끝났어요" : "실행 인증은 9월 7일부터 시작해요";
+}
 
 function escapeHtml(value) {
   return String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({
@@ -102,6 +120,7 @@ function renderPickList() {
 
 // ── 핀 단계 ──────────────────────────────────
 function choosePerson(id) {
+  if (pinSubmitting) return;
   pinTarget = Data.member(id);
   pinMode = Data.hasPin(pinTarget) ? "verify" : "set";
   pinBuffer = "";
@@ -117,6 +136,7 @@ function choosePerson(id) {
 }
 
 function backToPick() {
+  if (pinSubmitting) return;
   document.getElementById("step-pin").style.display = "none";
   document.getElementById("step-pick").style.display = "block";
 }
@@ -146,36 +166,39 @@ function renderPinDots() {
 }
 
 function pinPress(k) {
+  if (pinSubmitting) return;
   if (k === "⌫") { pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); return; }
   if (pinBuffer.length >= 4) return;
   pinBuffer += k;
   renderPinDots();
-  if (pinBuffer.length === 4) setTimeout(submitPin, 150);
+  if (pinBuffer.length === 4) submitPin();
 }
 
 async function submitPin() {
+  if (pinSubmitting || pinBuffer.length !== 4 || !pinTarget) return;
+  pinSubmitting = true;
+  const targetId = pinTarget.id;
   const promptEl = document.getElementById("pinPrompt");
   const errEl = document.getElementById("pinErr");
   const entered = pinBuffer;
+  document.querySelectorAll("#step-pin button").forEach(b => b.disabled = true);
   promptEl.textContent = "확인 중...";
   try {
-    if (pinMode === "set") {
-      const r = await Data.setPin(pinTarget.id, entered);
-      if (r.ok) { enter(pinTarget.id); }
-      else { errEl.textContent = "설정 실패: " + (r.error || ""); pinBuffer = ""; renderPinDots(); promptEl.textContent = "비밀번호 4자리를 정해요"; }
-    } else {
-      const ok = await Data.verifyPin(pinTarget.id, entered);
-      if (ok) { enter(pinTarget.id); }
-      else {
+    const ok = pinMode === "set" ? (await Data.setPin(targetId, entered)).ok : await Data.verifyPin(targetId, entered);
+    if (ok) { enter(targetId); }
+    else {
         errEl.textContent = "비밀번호가 달라요. 다시 입력해주세요.";
         pinBuffer = ""; renderPinDots();
         promptEl.textContent = "비밀번호 4자리를 입력하세요";
-      }
     }
   } catch (e) {
-    errEl.textContent = "네트워크 오류. 잠시 후 다시 시도해요.";
+    errEl.textContent = errorMessage(e);
     pinBuffer = ""; renderPinDots();
-    promptEl.textContent = "비밀번호 4자리를 입력하세요";
+  } finally {
+    pinSubmitting = false;
+    pinMode = Data.hasPin(Data.member(targetId)) ? "verify" : "set";
+    promptEl.textContent = pinMode === "set" ? "비밀번호 4자리를 정해요" : "비밀번호 4자리를 입력하세요";
+    document.querySelectorAll("#step-pin button").forEach(b => b.disabled = false);
   }
 }
 
@@ -189,7 +212,7 @@ function enter(id) {
   const challenge = Data.challenge();
   document.querySelector(".day-hero .big").innerHTML = challenge.canCheckIn
     ? `챌린지 <b id="todayDay">${challenge.today}</b>일째`
-    : '실행 인증은 <b id="todayDay">9월 7일</b> 시작';
+    : escapeHtml(closedMessage());
   document.getElementById("todayDate").textContent = new Date().toLocaleDateString("ko-KR", {weekday:"long", month:"long", day:"numeric"});
   renderMissions(); renderGrid();
   go("s-today");
@@ -197,6 +220,7 @@ function enter(id) {
 }
 
 function logout() {
+  if (savingMission || pinSubmitting) return;
   Data.clearMe(); me = null;
   backToPick();
   go("s-enter");
@@ -223,7 +247,7 @@ function renderMissions(justOnId) {
     <div class="top">
       <div class="check"${challenge.canCheckIn ? ' onclick="toggleMission()"' : ''}>${isDone ? '<i data-lucide="check"></i>' : ""}</div>
       <div class="body">
-        <div class="mtitle">${challenge.canCheckIn ? escapeHtml(m.title) : '실행 인증은 9월 7일부터 시작해요'}${isDone ? ' <span class="done-tag">오늘 인증 완료</span>' : ''}</div>
+        <div class="mtitle">${challenge.canCheckIn ? escapeHtml(m.title) : escapeHtml(closedMessage())}${isDone ? ' <span class="done-tag">오늘 인증 완료</span>' : ''}</div>
         <div class="mteam">${teamIcon(m.team)} ${escapeHtml(m.team)} · ${escapeHtml(m.role)}</div>
       </div>
     </div>`;
@@ -261,7 +285,7 @@ function renderTodayParty(justOnId) {
   const left = mates.length - done;
   const msg = document.getElementById("partyMsg");
   msg.className = `party-msg stage-${progress.stage}`;
-  if (!ch.canCheckIn) msg.innerHTML = "실행 인증은 9월 7일 1일차부터 시작해요";
+  if (!ch.canCheckIn) msg.textContent = closedMessage();
   else if (progress.stage === "blaze") msg.innerHTML = "🔥🔥🔥 우리 파티 <b>전원 불꽃!</b>";
   else if (left === 1 && Data.myCheckRaw(me, ch.today) !== true)
     msg.innerHTML = "<b>나 하나 남았어요!</b> 내가 채우면 전원 불꽃";
@@ -281,25 +305,32 @@ function teamMates() {
 }
 
 async function toggleMission() {
-  if (!Data.challenge().canCheckIn) {
-    showToast("실행 인증은 9월 7일부터 시작해요.");
-    return;
-  }
-  if (savingMission) return;
+  if (savingMission || !me) return;
+  if (refreshingState) { showToast("최신 기록을 불러오는 중이에요. 잠시 후 눌러주세요."); return; }
   savingMission = true;
-  const day = Data.challenge().today;
-  const cur = Data.myCheckRaw(me, day) === true;
-  const mates = teamMates();
-  const before = teamProgress(mates.filter(p => Data.isChecked(p, day)).length, mates.length);
-
+  const displayedDay = Data.challenge().today;
+  const intendedDone = Data.myCheckRaw(me, displayedDay) !== true;
+  let writing = false;
+  showToast("최신 기록을 확인하고 저장하는 중이에요…");
   try {
+    await Data.reload();
+    enter(me.id);
+    if (!Data.challenge().canCheckIn) { showToast(closedMessage()); return; }
+    const day = Data.challenge().today;
+    // Preserve the clicked intention if another device already completed the same day.
+    // If the date changed, the click starts today's completion, not yesterday's cancellation.
+    const cur = day === displayedDay ? !intendedDone : false;
+    const mates = teamMates();
+    const before = teamProgress(mates.filter(p => Data.isChecked(p, day)).length, mates.length);
+    writing = true;
     await Data.setMyCheck(me, day, !cur, "");
     // 서버 저장 성공 뒤에만 화면과 축하 효과를 갱신한다.
+    enter(me.id);
     renderMissions(!cur ? me.id : null);
-    renderGrid();
+    showToast(cur ? "오늘 인증을 취소했어요." : "오늘 인증을 저장했어요.");
 
     if (!cur) {
-      const after = teamProgress(mates.filter(p => Data.isChecked(p, day)).length, mates.length);
+      const after = teamProgress(mates.filter(p => Data.isChecked(p, Data.challenge().today)).length, mates.length);
       if (after.stage === "blaze" && mates.length > 1) {
         showToast("우리 파티 전원 불꽃! 🎉🎉");
         fireConfetti("big");
@@ -312,8 +343,12 @@ async function toggleMission() {
       }
     }
   } catch (e) {
-    console.error(e);
-    showToast("저장하지 못했어요. 인터넷 연결 후 다시 눌러주세요.");
+    if (writing && ["HP-NETWORK-01", "HP-TIMEOUT-01", "HP-SERVER-01"].includes(e.code)) {
+      try {
+        await Data.reload(); enter(me.id);
+        showToast("서버 기록을 다시 불러왔어요. 오늘 인증 상태를 확인해주세요.");
+      } catch (_) { showToast("저장 결과를 확인하지 못했어요. 연결이 복구되면 새로고침해 기록을 확인해주세요."); }
+    } else showToast(errorMessage(e));
   } finally {
     savingMission = false;
   }
@@ -322,7 +357,7 @@ async function toggleMission() {
 // ── 전체 기간 그리드 (오늘 화면 하단) ──────────
 function renderGrid() {
   const ch = Data.challenge();
-  const visibleToday = ch.canCheckIn ? ch.today : 0;
+  const visibleToday = ch.canCheckIn || ch.today === ch.totalDays ? ch.today : 0;
   const mates = teamMates();
   const t = document.getElementById("grid");
   let html = "<tr><th class='row-label'></th>";
@@ -437,16 +472,17 @@ function showToast(msg) {
   t.textContent = msg || "완료!";
   t.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 1600);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 6000);
 }
 
 // PWA를 다음 날 다시 열거나 백그라운드에서 돌아왔을 때 날짜와 파티 기록을 새로 받는다.
 async function refreshWhenVisible() {
-  if (document.visibilityState !== "visible" || refreshingState) return;
+  if (document.visibilityState !== "visible" || refreshingState || savingMission || pinSubmitting) return;
   refreshingState = true;
   try {
     const currentId = me && me.id;
     await Data.reload();
+    if (savingMission || pinSubmitting || (me && me.id) !== currentId) return;
     if (currentId && Data.member(currentId)) enter(currentId);
     else if (currentId) logout();
     else if (!me) renderPickList();
@@ -483,14 +519,17 @@ async function init() {
   try {
     await Data.load();
   } catch (e) {
-    pickBox.innerHTML = `<div class="enter-foot" style="margin-top:0;">데이터를 불러오지 못했어요.<br/>인터넷 연결을 확인하고 새로고침해주세요.</div>`;
+    pickBox.innerHTML = `<div class="enter-foot" style="margin-top:0;">${escapeHtml(errorMessage(e))}<br/><button onclick="location.reload()">다시 불러오기</button></div>`;
     console.error(e);
     return;
   }
-  renderPickList();
-  refreshIcons();
   // 서버에서도 PIN이 유효한 경우에만 기억된 로그인으로 자동 입장한다.
   const saved = await verifiedSavedMemberId();
-  if (saved) enter(saved);
+  renderPickList();
+  refreshIcons();
+  if (saved && !pinSubmitting && !pinTarget && !me) {
+    try { enter(saved); }
+    catch (error) { pickBox.innerHTML = `<div class="enter-foot">${escapeHtml(errorMessage(error))}</div>`; }
+  }
 }
 init();
