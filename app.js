@@ -187,7 +187,7 @@ function enter(id) {
   document.getElementById("meName").textContent = me.name;
   document.getElementById("meRole").innerHTML = teamIcon(me.team) + " " + escapeHtml(me.team) + " · " + escapeHtml(me.role);
   const challenge = Data.challenge();
-  document.getElementById("dayHeroText").innerHTML = challenge.canCheckIn
+  document.querySelector(".day-hero .big").innerHTML = challenge.canCheckIn
     ? `챌린지 <b id="todayDay">${challenge.today}</b>일째`
     : '실행 인증은 <b id="todayDay">9월 7일</b> 시작';
   document.getElementById("todayDate").textContent = new Date().toLocaleDateString("ko-KR", {weekday:"long", month:"long", day:"numeric"});
